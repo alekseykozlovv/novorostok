@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>НовоРосток — Нова</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #ffffff;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+    .screen { display: none; padding: 24px 20px; min-height: 100vh; flex-direction: column; }
+    .screen.active { display: flex; }
+    .avatar { font-size: 48px; text-align: center; margin-bottom: 16px; }
+    .title { font-size: 22px; font-weight: 600; text-align: center; margin-bottom: 10px; line-height: 1.3; }
+    .subtitle { font-size: 15px; color: #666; text-align: center; line-height: 1.6; margin-bottom: 24px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 28px; }
+    .tag { font-size: 12px; padding: 5px 12px; border-radius: 20px; border: 1px solid #ddd; color: #666; }
+    input[type="text"] {
+      width: 100%; padding: 14px 16px; border: 1px solid #ddd;
+      border-radius: 12px; font-size: 16px; margin-bottom: 12px; outline: none;
+    }
+    input:focus { border-color: #4CAF50; }
+    .btn-main {
+      width: 100%; padding: 16px; background: #2d2d2d; color: white;
+      border: none; border-radius: 12px; font-size: 16px; font-weight: 500;
+      cursor: pointer; margin-bottom: 8px;
+    }
+    .btn-main:active { opacity: 0.8; }
+    .btn-main:disabled { opacity: 0.4; }
+    .progress-wrap { margin-bottom: 20px; }
+    .progress-info { display: flex; justify-content: space-between; font-size: 12px; color: #999; margin-bottom: 6px; }
+    .progress-track { height: 3px; background: #eee; border-radius: 2px; }
+    .progress-fill { height: 100%; background: #2d2d2d; border-radius: 2px; transition: width 0.3s; }
+    .question-box { background: #f7f7f7; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+    .nova-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .question-text { font-size: 17px; font-weight: 500; line-height: 1.4; }
+    .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .option {
+      padding: 14px 16px; background: white; border: 1px solid #e0e0e0;
+      border-radius: 12px; text-align: left; font-size: 14px; cursor: pointer; line-height: 1.4;
+    }
+    .option.selected { border-color: #2d2d2d; border-width: 2px; background: #f7f7f7; }
+    textarea {
+      width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px;
+      font-size: 15px; min-height: 110px; resize: none; outline: none;
+      font-family: inherit; margin-bottom: 12px;
+    }
+    textarea:focus { border-color: #4CAF50; }
+    .nav { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-back {
+      padding: 12px 20px; background: transparent; border: 1px solid #ddd;
+      border-radius: 10px; font-size: 14px; color: #666; cursor: pointer;
+    }
+    .btn-next {
+      padding: 12px 24px; background: #2d2d2d; color: white;
+      border: none; border-radius: 10px; font-size: 14px; cursor: pointer; font-weight: 500;
+    }
+    .error { background: #fff0f0; color: #c00; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; display: none; }
+    .loading-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 16px; text-align: center; }
+    .spinner { width: 36px; height: 36px; border: 2px solid #eee; border-top-color: #2d2d2d; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-title { font-size: 18px; font-weight: 500; }
+    .loading-sub { font-size: 14px; color: #666; max-width: 260px; line-height: 1.6; }
+    .result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #eee; }
+    .result-avatar { font-size: 32px; }
+    .result-title { font-size: 18px; font-weight: 600; }
+    .result-sub { font-size: 13px; color: #888; }
+    .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin-bottom: 10px; }
+    .directions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+    .direction { background: #f7f7f7; border-radius: 12px; padding: 12px 8px; text-align: center; }
+    .dir-icon { font-size: 24px; margin-bottom: 6px; }
+    .dir-name { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+    .dir-match { font-size: 11px; color: #888; line-height: 1.3; }
+    .steps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .step { display: flex; gap: 12px; background: white; border: 1px solid #eee; border-radius: 12px; padding: 12px; }
+    .step-num { width: 24px; height: 24px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #666; flex-shrink: 0; }
+    .step-text { font-size: 13px; line-height: 1.5; }
+    .nova-msg { background: #f7f7f7; border-radius: 14px; padding: 16px; font-size: 14px; color: #555; line-height: 1.6; font-style: italic; margin-bottom: 20px; }
+    .mt-auto { margin-top: auto; }
+  </style>
+</head>
+<body>
+
+<!-- Экран 1: Приветствие -->
+<div class="screen active" id="screen-welcome">
+  <div class="avatar">🌱</div>
+  <div class="title">Привет! Я Нова — твой AI-наставник</div>
+  <div class="subtitle">Помогу разобраться в интересах и найти направление. Без давления и правильных ответов.</div>
+  <div class="tags">
+    <span class="tag">5 минут</span>
+    <span class="tag">Конфиденциально</span>
+    <span class="tag">Без оценок</span>
+  </div>
+  <input type="text" id="user-name" placeholder="Как тебя зовут?">
+  <button class="btn-main" onclick="startInterview()">Начать разговор 🌿</button>
+</div>
+
+<!-- Экран 2: Интервью -->
+<div class="screen" id="screen-interview">
+  <div class="progress-wrap">
+    <div class="progress-info">
+      <span id="progress-text">Вопрос 1 из 7</span>
+      <span id="progress-pct">14%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill" style="width:14%"></div>
+    </div>
+  </div>
+  <div class="question-box">
+    <div class="nova-label">Нова спрашивает</div>
+    <div class="question-text" id="question-text"></div>
+  </div>
+  <div id="answer-area"></div>
+  <div class="error" id="error-box">Пожалуйста, ответь на вопрос — любой ответ подходит!</div>
+  <div class="nav mt-auto">
+    <button class="btn-back" id="btn-back" onclick="prevQ()" style="display:none">← Назад</button>
+    <button class="btn-next" id="btn-next" onclick="nextQ()">Далее →</button>
+  </div>
+</div>
+
+<!-- Экран 3: Загрузка -->
+<div class="screen" id="screen-loading">
+  <div class="loading-wrap">
+    <div class="spinner"></div>
+    <div class="loading-title">Нова анализирует ответы</div>
+    <div class="loading-sub">Составляю персональный план специально для тебя...</div>
+  </div>
+</div>
+
+<!-- Экран 4: Результат -->
+<div class="screen" id="screen-result">
+  <div class="result-header">
+    <div class="result-avatar">🌱</div>
+    <div>
+      <div class="result-title" id="result-title">Твой план</div>
+      <div class="result-sub">Составлено Новой</div>
+    </div>
+  </div>
+  <div class="section-label">Направления для тебя</div>
+  <div class="directions" id="directions"></div>
+  <div class="section-label">Первые шаги</div>
+  <div class="steps" id="steps"></div>
+  <div class="nova-msg" id="nova-msg"></div>
+  <button class="btn-main" onclick="restart()">Пройти ещё раз</button>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const QUESTIONS = [
+  { id:'energy', type:'single', text:'Когда ты чувствуешь себя наиболее живым и заряженным?', options:['Когда решаю сложные задачи','Когда помогаю другим людям','Когда создаю что-то своё','Когда узнаю новое','Когда двигаюсь и действую'] },
+  { id:'subject', type:'single', text:'Какой школьный предмет нравится больше всего?', options:['Математика, физика, информатика','Биология, химия','История, обществознание','Русский, литература, языки','Рисование, музыка, технология'] },
+  { id:'free_time', type:'text', text:'Чем ты занимаешься в свободное время, когда никто не заставляет?', placeholder:'Напиши свободно — нет неправильных ответов' },
+  { id:'dream', type:'text', text:'Если бы ты мог делать что угодно — что бы это было?', placeholder:'Первое что приходит в голову' },
+  { id:'strength', type:'single', text:'Что у тебя получается лучше всего по словам других?', options:['Объяснять и доносить идеи','Находить решения логически','Организовывать и планировать','Пробовать новое и рисковать','Слушать и понимать людей'] },
+  { id:'challenge', type:'single', text:'Что тебя сейчас беспокоит больше всего?', options:['Не знаю кем хочу быть','Много давления от взрослых','Трудно сосредоточиться','Не уверен в своих силах','Всё норм, хочу понять направление'] },
+  { id:'horizon', type:'text', text:'Через 5 лет — каким ты хочешь видеть себя?', placeholder:'Где ты? Что делаешь? Как себя чувствуешь?' }
+];
+
+let cur = 0, answers = {}, userName = '';
+
+const tgUser = tg?.initDataUnsafe?.user;
+if (tgUser?.first_name) {
+  document.getElementById('user-name').value = tgUser.first_name;
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function startInterview() {
+  userName = document.getElementById('user-name').value.trim() || 'друг';
+  cur = 0; answers = {};
+  show('interview');
+  renderQ();
+}
+
+function renderQ() {
+  const q = QUESTIONS[cur];
+  const pct = Math.round(((cur+1)/QUESTIONS.length)*100);
+  document.getElementById('progress-text').textContent = `Вопрос ${cur+1} из ${QUESTIONS.length}`;
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('question-text').textContent = q.text;
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('btn-back').style.display = cur > 0 ? 'block' : 'none';
+  document.getElementById('btn-next').textContent = cur === QUESTIONS.length-1 ? 'Получить результат ✓' : 'Далее →';
+
+  const area = document.getElementById('answer-area');
+  area.innerHTML = '';
+
+  if (q.type === 'single') {
+    const div = document.createElement('div');
+    div.className = 'options';
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'option' + (answers[q.id] === opt ? ' selected' : '');
+      btn.textContent = opt;
+      btn.onclick = () => {
+        answers[q.id] = opt;
+        div.querySelectorAll('.option').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      };
+      div.appendChild(btn);
+    });
+    area.appendChild(div);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.placeholder = q.placeholder || '';
+    ta.value = answers[q.id] || '';
+    ta.oninput = () => { answers[q.id] = ta.value; };
+    area.appendChild(ta);
+  }
+}
+
+function prevQ() { if (cur > 0) { cur--; renderQ(); } }
+
+function nextQ() {
+  const val = answers[QUESTIONS[cur].id];
+  if (!val || val.trim().length < 2) {
+    document.getElementById('error-box').style.display = 'block';
+    return;
+  }
+  if (cur < QUESTIONS.length - 1) { cur++; renderQ(); }
+  else generateResult();
+}
+
+async function generateResult() {
+  show('loading');
+  const OPENAI_KEY = 'ВСТАВЬ_СЮДА_КЛЮЧ_OPENAI';
+
+  const prompt = `Ты — Нова, AI-наставник для подростков. Тёплый, поддерживающий, без давления.
+
+Подросток ${userName} прошёл интервью:
+- Энергия от: ${answers.energy || '—'}
+- Любимый предмет: ${answers.subject || '—'}
+- Свободное время: ${answers.free_time || '—'}
+- Мечта: ${answers.dream || '—'}
+- Сильная сторона: ${answers.strength || '—'}
+- Беспокоит: ${answers.challenge || '—'}
+- Через 5 лет: ${answers.horizon || '—'}
+
+Ответь ТОЛЬКО JSON без markdown:
+{"directions":[{"icon":"emoji","name":"название","match":"1 предложение почему"},{"icon":"emoji","name":"название","match":"1 предложение"},{"icon":"emoji","name":"название","match":"1 предложение"}],"steps":["шаг 1 — конкретно","шаг 2","шаг 3","шаг 4","шаг 5"],"nova_message":"тёплое сообщение от Новы лично ${userName}, 2-3 предложения"}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.map(i => i.text||'').join('');
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    showResult(parsed);
+  } catch(e) {
+    showFallback();
+  }
+}
+
+function showResult(data) {
+  show('result');
+  document.getElementById('result-title').textContent = `Твой план, ${userName}`;
+  const dGrid = document.getElementById('directions');
+  dGrid.innerHTML = '';
+  (data.directions||[]).forEach(d => {
+    dGrid.innerHTML += `<div class="direction"><div class="dir-icon">${d.icon}</div><div class="dir-name">${d.name}</div><div class="dir-match">${d.match}</div></div>`;
+  });
+  const sList = document.getElementById('steps');
+  sList.innerHTML = '';
+  (data.steps||[]).forEach((s,i) => {
+    sList.innerHTML += `<div class="step"><div class="step-num">${i+1}</div><div class="step-text">${s}</div></div>`;
+  });
+  document.getElementById('nova-msg').textContent = data.nova_message || '';
+}
+
+function showFallback() {
+  showResult({
+    directions:[{icon:'💡',name:'Технологии',match:'Тебе нравится разбираться в сложных вещах'},{icon:'🎨',name:'Творчество',match:'Ты умеешь создавать новое'},{icon:'🤝',name:'Люди',match:'Ты чувствуешь других'}],
+    steps:['Выбери одно направление и найди 3 видео о нём','Поговори с кем-то кто работает в этой сфере','Пройди один бесплатный курс на Stepik','Веди дневник: что тебя зажигает каждый день','Через месяц поставь цель на следующие 3 месяца'],
+    nova_message:`${userName}, ты уже сделал важный шаг — начал думать о своём пути. Я здесь рядом.`
+  });
+}
+
+function restart() { cur=0; answers={}; show('welcome'); }
+</script>
+</body>
+</html>
