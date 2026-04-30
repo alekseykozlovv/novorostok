@@ -149,6 +149,16 @@
   <button class="btn-main" onclick="restart()">Пройти ещё раз</button>
 </div>
 
+<!-- Экран 5: Данные отправлены -->
+<div class="screen" id="screen-result-sent">
+  <div class="loading-wrap">
+    <div style="font-size:64px">🌱</div>
+    <div class="loading-title">Нова получила ответы!</div>
+    <div class="loading-sub">Вернись в чат — там уже готов твой персональный план.</div>
+    <button class="btn-main" style="max-width:240px; margin-top:8px" onclick="tg.close()">Вернуться в чат →</button>
+  </div>
+</div>
+
 <script>
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
@@ -232,39 +242,24 @@ function nextQ() {
   else generateResult();
 }
 
+// ─── ГЛАВНАЯ ФУНКЦИЯ: отправляем данные в бот через Telegram ───
 async function generateResult() {
   show('loading');
-  const OPENAI_KEY = 'ВСТАВЬ_СЮДА_КЛЮЧ_OPENAI';
-
-  const prompt = `Ты — Нова, AI-наставник для подростков. Тёплый, поддерживающий, без давления.
-
-Подросток ${userName} прошёл интервью:
-- Энергия от: ${answers.energy || '—'}
-- Любимый предмет: ${answers.subject || '—'}
-- Свободное время: ${answers.free_time || '—'}
-- Мечта: ${answers.dream || '—'}
-- Сильная сторона: ${answers.strength || '—'}
-- Беспокоит: ${answers.challenge || '—'}
-- Через 5 лет: ${answers.horizon || '—'}
-
-Ответь ТОЛЬКО JSON без markdown:
-{"directions":[{"icon":"emoji","name":"название","match":"1 предложение почему"},{"icon":"emoji","name":"название","match":"1 предложение"},{"icon":"emoji","name":"название","match":"1 предложение"}],"steps":["шаг 1 — конкретно","шаг 2","шаг 3","шаг 4","шаг 5"],"nova_message":"тёплое сообщение от Новы лично ${userName}, 2-3 предложения"}`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await res.json();
-    const text = data.content.map(i => i.text||'').join('');
-    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
-    showResult(parsed);
+    // Отправляем данные напрямую в bot.py через Telegram WebApp API
+    tg.sendData(JSON.stringify({
+      name: userName,
+      answers: answers
+    }));
+
+    // Через 1 сек показываем экран "данные отправлены"
+    setTimeout(() => {
+      show('result-sent');
+    }, 1000);
+
   } catch(e) {
+    console.error(e);
     showFallback();
   }
 }
@@ -287,8 +282,18 @@ function showResult(data) {
 
 function showFallback() {
   showResult({
-    directions:[{icon:'💡',name:'Технологии',match:'Тебе нравится разбираться в сложных вещах'},{icon:'🎨',name:'Творчество',match:'Ты умеешь создавать новое'},{icon:'🤝',name:'Люди',match:'Ты чувствуешь других'}],
-    steps:['Выбери одно направление и найди 3 видео о нём','Поговори с кем-то кто работает в этой сфере','Пройди один бесплатный курс на Stepik','Веди дневник: что тебя зажигает каждый день','Через месяц поставь цель на следующие 3 месяца'],
+    directions:[
+      {icon:'💡', name:'Технологии', match:'Тебе нравится разбираться в сложных вещах'},
+      {icon:'🎨', name:'Творчество', match:'Ты умеешь создавать новое'},
+      {icon:'🤝', name:'Люди', match:'Ты чувствуешь других'}
+    ],
+    steps:[
+      'Выбери одно направление и найди 3 видео о нём',
+      'Поговори с кем-то кто работает в этой сфере',
+      'Пройди один бесплатный курс на Stepik',
+      'Веди дневник: что тебя зажигает каждый день',
+      'Через месяц поставь цель на следующие 3 месяца'
+    ],
     nova_message:`${userName}, ты уже сделал важный шаг — начал думать о своём пути. Я здесь рядом.`
   });
 }
