@@ -31,8 +31,15 @@
       cursor: pointer; margin-bottom: 8px;
     }
     .btn-main:active { opacity: 0.8; }
-    .btn-main:disabled { opacity: 0.4; }
-    .progress-wrap { margin-bottom: 20px; }
+    .section-badge {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 4px 10px; border-radius: 20px; margin-bottom: 12px;
+    }
+    .badge-riasec { background: #e8f5e9; color: #2e7d32; }
+    .badge-soft { background: #e3f2fd; color: #1565c0; }
+    .badge-motivation { background: #fce4ec; color: #880e4f; }
+    .progress-wrap { margin-bottom: 16px; }
     .progress-info { display: flex; justify-content: space-between; font-size: 12px; color: #999; margin-bottom: 6px; }
     .progress-track { height: 3px; background: #eee; border-radius: 2px; }
     .progress-fill { height: 100%; background: #2d2d2d; border-radius: 2px; transition: width 0.3s; }
@@ -47,7 +54,7 @@
     .option.selected { border-color: #2d2d2d; border-width: 2px; background: #f7f7f7; }
     textarea {
       width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px;
-      font-size: 15px; min-height: 110px; resize: none; outline: none;
+      font-size: 15px; min-height: 100px; resize: none; outline: none;
       font-family: inherit; margin-bottom: 12px;
     }
     textarea:focus { border-color: #4CAF50; }
@@ -66,21 +73,6 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-title { font-size: 18px; font-weight: 500; }
     .loading-sub { font-size: 14px; color: #666; max-width: 260px; line-height: 1.6; }
-    .result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #eee; }
-    .result-avatar { font-size: 32px; }
-    .result-title { font-size: 18px; font-weight: 600; }
-    .result-sub { font-size: 13px; color: #888; }
-    .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin-bottom: 10px; }
-    .directions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
-    .direction { background: #f7f7f7; border-radius: 12px; padding: 12px 8px; text-align: center; }
-    .dir-icon { font-size: 24px; margin-bottom: 6px; }
-    .dir-name { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
-    .dir-match { font-size: 11px; color: #888; line-height: 1.3; }
-    .steps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-    .step { display: flex; gap: 12px; background: white; border: 1px solid #eee; border-radius: 12px; padding: 12px; }
-    .step-num { width: 24px; height: 24px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #666; flex-shrink: 0; }
-    .step-text { font-size: 13px; line-height: 1.5; }
-    .nova-msg { background: #f7f7f7; border-radius: 14px; padding: 16px; font-size: 14px; color: #555; line-height: 1.6; font-style: italic; margin-bottom: 20px; }
     .mt-auto { margin-top: auto; }
   </style>
 </head>
@@ -90,13 +82,14 @@
 <div class="screen active" id="screen-welcome">
   <div class="avatar">🌱</div>
   <div class="title">Привет! Я Нова — твой AI-наставник</div>
-  <div class="subtitle">Помогу разобраться в интересах и найти направление. Без давления и правильных ответов.</div>
+  <div class="subtitle">Помогу разобраться в интересах и найти своё направление. Без давления и правильных ответов.</div>
   <div class="tags">
-    <span class="tag">5 минут</span>
+    <span class="tag">10 минут</span>
     <span class="tag">Конфиденциально</span>
     <span class="tag">Без оценок</span>
   </div>
   <input type="text" id="user-name" placeholder="Как тебя зовут?">
+  <input type="text" id="user-age" placeholder="Сколько тебе лет?" style="margin-bottom:16px">
   <button class="btn-main" onclick="startInterview()">Начать разговор 🌿</button>
 </div>
 
@@ -104,13 +97,14 @@
 <div class="screen" id="screen-interview">
   <div class="progress-wrap">
     <div class="progress-info">
-      <span id="progress-text">Вопрос 1 из 7</span>
-      <span id="progress-pct">14%</span>
+      <span id="progress-text">Вопрос 1 из 15</span>
+      <span id="progress-pct">7%</span>
     </div>
     <div class="progress-track">
-      <div class="progress-fill" id="progress-fill" style="width:14%"></div>
+      <div class="progress-fill" id="progress-fill" style="width:7%"></div>
     </div>
   </div>
+  <div id="section-badge-wrap"></div>
   <div class="question-box">
     <div class="nova-label">Нова спрашивает</div>
     <div class="question-text" id="question-text"></div>
@@ -128,28 +122,11 @@
   <div class="loading-wrap">
     <div class="spinner"></div>
     <div class="loading-title">Нова анализирует ответы</div>
-    <div class="loading-sub">Составляю персональный план специально для тебя...</div>
+    <div class="loading-sub">Составляю персональный профиль специально для тебя...</div>
   </div>
 </div>
 
-<!-- Экран 4: Результат -->
-<div class="screen" id="screen-result">
-  <div class="result-header">
-    <div class="result-avatar">🌱</div>
-    <div>
-      <div class="result-title" id="result-title">Твой план</div>
-      <div class="result-sub">Составлено Новой</div>
-    </div>
-  </div>
-  <div class="section-label">Направления для тебя</div>
-  <div class="directions" id="directions"></div>
-  <div class="section-label">Первые шаги</div>
-  <div class="steps" id="steps"></div>
-  <div class="nova-msg" id="nova-msg"></div>
-  <button class="btn-main" onclick="restart()">Пройти ещё раз</button>
-</div>
-
-<!-- Экран 5: Данные отправлены -->
+<!-- Экран 4: Данные отправлены -->
 <div class="screen" id="screen-result-sent">
   <div class="loading-wrap">
     <div style="font-size:64px">🌱</div>
@@ -163,17 +140,196 @@
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
+// ─── 15 ВОПРОСОВ ПО МЕТОДОЛОГИИ RIASEC + SOFT SKILLS ───
 const QUESTIONS = [
-  { id:'energy', type:'single', text:'Когда ты чувствуешь себя наиболее живым и заряженным?', options:['Когда решаю сложные задачи','Когда помогаю другим людям','Когда создаю что-то своё','Когда узнаю новое','Когда двигаюсь и действую'] },
-  { id:'subject', type:'single', text:'Какой школьный предмет нравится больше всего?', options:['Математика, физика, информатика','Биология, химия','История, обществознание','Русский, литература, языки','Рисование, музыка, технология'] },
-  { id:'free_time', type:'text', text:'Чем ты занимаешься в свободное время, когда никто не заставляет?', placeholder:'Напиши свободно — нет неправильных ответов' },
-  { id:'dream', type:'text', text:'Если бы ты мог делать что угодно — что бы это было?', placeholder:'Первое что приходит в голову' },
-  { id:'strength', type:'single', text:'Что у тебя получается лучше всего по словам других?', options:['Объяснять и доносить идеи','Находить решения логически','Организовывать и планировать','Пробовать новое и рисковать','Слушать и понимать людей'] },
-  { id:'challenge', type:'single', text:'Что тебя сейчас беспокоит больше всего?', options:['Не знаю кем хочу быть','Много давления от взрослых','Трудно сосредоточиться','Не уверен в своих силах','Всё норм, хочу понять направление'] },
-  { id:'horizon', type:'text', text:'Через 5 лет — каким ты хочешь видеть себя?', placeholder:'Где ты? Что делаешь? Как себя чувствуешь?' }
+
+  // БЛОК 1: RIASEC (вопросы 1-6)
+  {
+    id: 'r1',
+    section: 'riasec',
+    type: 'single',
+    text: 'Что тебе ближе всего в свободное время?',
+    options: [
+      '🔧 Делать, чинить, собирать что-то руками',
+      '🔬 Разбираться, как всё устроено — читать, исследовать',
+      '🎨 Рисовать, писать, снимать, придумывать',
+      '🤝 Общаться, помогать людям, быть рядом',
+      '🚀 Организовывать, запускать проекты, вести команду',
+      '📋 Наводить порядок, работать с данными и системами'
+    ]
+  },
+  {
+    id: 'r2',
+    section: 'riasec',
+    type: 'single',
+    text: 'Ты нашёл сломанный гаджет. Что сделаешь?',
+    options: [
+      '🛠 Разберу и попробую починить сам',
+      '🔍 Поищу информацию, как он устроен',
+      '✏️ Зарисую или придумаю как его улучшить',
+      '💬 Спрошу кого-то опытного о помощи',
+      '📦 Быстро найду решение и организую ремонт',
+      '🗂 Запишу проблему и найду инструкцию'
+    ]
+  },
+  {
+    id: 'r3',
+    section: 'riasec',
+    type: 'single',
+    text: 'Какой школьный предмет тебе даётся легче и нравится больше?',
+    options: [
+      '⚙️ Технология, физика, информатика',
+      '🧪 Биология, химия, математика',
+      '🎭 Литература, ИЗО, музыка',
+      '🌍 История, обществознание, психология',
+      '💼 Экономика, предпринимательство',
+      '📊 Математика, статистика, таблицы'
+    ]
+  },
+  {
+    id: 'r4',
+    section: 'riasec',
+    type: 'single',
+    text: 'Когда ты чувствуешь себя наиболее живым и заряженным?',
+    options: [
+      '🔨 Когда создаю что-то руками',
+      '💡 Когда разгадываю сложную задачу',
+      '🎬 Когда творю — рисую, пишу, снимаю',
+      '❤️ Когда помогаю другим и чувствую их благодарность',
+      '🏆 Когда веду команду к цели',
+      '✅ Когда всё чётко, структурировано и по плану'
+    ]
+  },
+  {
+    id: 'r5',
+    section: 'riasec',
+    type: 'single',
+    text: 'Что тебя больше всего раздражает?',
+    options: [
+      '😤 Сидеть без дела, нет практики',
+      '😴 Не понимать суть, поверхностность',
+      '🥱 Скучные шаблоны без творчества',
+      '😞 Работать в одиночку без общения',
+      '😑 Выполнять чужие решения без влияния',
+      '😵 Хаос и отсутствие системы'
+    ]
+  },
+  {
+    id: 'r6',
+    section: 'riasec',
+    type: 'text',
+    text: 'Если бы деньги и мнение других не имели значения — чем бы ты занимался каждый день?',
+    placeholder: 'Первое что приходит в голову — напиши честно 😊'
+  },
+
+  // БЛОК 2: SOFT SKILLS (вопросы 7-11)
+  {
+    id: 's1',
+    section: 'soft',
+    type: 'single',
+    text: 'Как тебе комфортнее работать?',
+    options: [
+      '🎧 Один — в тишине лучше думается',
+      '👥 В команде — идеи рождаются в общении',
+      '🔄 По-разному — зависит от задачи'
+    ]
+  },
+  {
+    id: 's2',
+    section: 'soft',
+    type: 'single',
+    text: 'Когда ты берёшься за новую сложную задачу, что происходит?',
+    options: [
+      '🔥 Загораюсь — мне нравится разбираться в новом',
+      '🤔 Осторожно изучаю — хочу понять прежде чем начать',
+      '😬 Немного тревожусь, но справляюсь',
+      '😰 Сложно — предпочитаю знакомые задачи'
+    ]
+  },
+  {
+    id: 's3',
+    section: 'soft',
+    type: 'single',
+    text: 'Что у тебя получается лучше всего по мнению других?',
+    options: [
+      '💬 Объяснять и доносить идеи',
+      '🧩 Находить нестандартные решения',
+      '📅 Организовывать и планировать',
+      '🌱 Поддерживать и слушать людей',
+      '⚡ Быстро брать инициативу',
+      '🔎 Замечать детали и ошибки'
+    ]
+  },
+  {
+    id: 's4',
+    section: 'soft',
+    type: 'single',
+    text: 'Как ты реагируешь, когда что-то идёт не по плану?',
+    options: [
+      '🛠 Ищу новое решение — это интересная задача',
+      '📞 Прошу помощи у других',
+      '😤 Расстраиваюсь, но продолжаю',
+      '⏸ Делаю паузу и обдумываю ситуацию'
+    ]
+  },
+  {
+    id: 's5',
+    section: 'soft',
+    type: 'text',
+    text: 'Напиши 2–3 вещи, которые у тебя точно получаются хорошо (даже если кажется, что это мелочь)',
+    placeholder: 'Например: быстро учусь, хорошо рисую, умею объяснять...'
+  },
+
+  // БЛОК 3: МОТИВАЦИЯ И БУДУЩЕЕ (вопросы 12-15)
+  {
+    id: 'm1',
+    section: 'motivation',
+    type: 'single',
+    text: 'Что тебя сейчас беспокоит больше всего?',
+    options: [
+      '🧭 Не знаю кем хочу быть',
+      '😰 Давление от взрослых с выбором профессии',
+      '📚 Трудно совмещать учёбу и интересы',
+      '💪 Не уверен в своих силах',
+      '🗺 Всё норм, просто хочу понять направление'
+    ]
+  },
+  {
+    id: 'm2',
+    section: 'motivation',
+    type: 'single',
+    text: 'Что тебе важнее в будущей профессии?',
+    options: [
+      '💰 Хороший доход и стабильность',
+      '❤️ Помогать людям и делать мир лучше',
+      '🎯 Делать то, что искренне нравится',
+      '🌟 Быть известным и влиятельным',
+      '🔓 Свобода и независимость'
+    ]
+  },
+  {
+    id: 'm3',
+    section: 'motivation',
+    type: 'text',
+    text: 'Чем ты занимаешься в интернете чаще всего? (YouTube, игры, чтение — всё подходит)',
+    placeholder: 'Напиши честно — это поможет найти твои скрытые интересы 🙂'
+  },
+  {
+    id: 'm4',
+    section: 'motivation',
+    type: 'text',
+    text: 'Через 5 лет — каким ты хочешь видеть себя? Где ты, что делаешь, как себя чувствуешь?',
+    placeholder: 'Описывай мечту, не "правильный" ответ 🌟'
+  }
 ];
 
-let cur = 0, answers = {}, userName = '';
+const SECTION_LABELS = {
+  riasec: { text: 'Интересы и склонности', class: 'badge-riasec' },
+  soft: { text: 'Твои сильные стороны', class: 'badge-soft' },
+  motivation: { text: 'Мотивация и будущее', class: 'badge-motivation' }
+};
+
+let cur = 0, answers = {}, userName = '', userAge = '';
 
 const tgUser = tg?.initDataUnsafe?.user;
 if (tgUser?.first_name) {
@@ -187,6 +343,11 @@ function show(id) {
 
 function startInterview() {
   userName = document.getElementById('user-name').value.trim() || 'друг';
+  userAge = document.getElementById('user-age').value.trim() || '';
+  if (!userName || userName.length < 2) {
+    document.getElementById('user-name').focus();
+    return;
+  }
   cur = 0; answers = {};
   show('interview');
   renderQ();
@@ -194,14 +355,24 @@ function startInterview() {
 
 function renderQ() {
   const q = QUESTIONS[cur];
-  const pct = Math.round(((cur+1)/QUESTIONS.length)*100);
-  document.getElementById('progress-text').textContent = `Вопрос ${cur+1} из ${QUESTIONS.length}`;
+  const pct = Math.round(((cur + 1) / QUESTIONS.length) * 100);
+  document.getElementById('progress-text').textContent = `Вопрос ${cur + 1} из ${QUESTIONS.length}`;
   document.getElementById('progress-pct').textContent = pct + '%';
   document.getElementById('progress-fill').style.width = pct + '%';
   document.getElementById('question-text').textContent = q.text;
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('btn-back').style.display = cur > 0 ? 'block' : 'none';
-  document.getElementById('btn-next').textContent = cur === QUESTIONS.length-1 ? 'Получить результат ✓' : 'Далее →';
+  document.getElementById('btn-next').textContent = cur === QUESTIONS.length - 1 ? 'Получить результат ✓' : 'Далее →';
+
+  // Секция-бейдж
+  const badgeWrap = document.getElementById('section-badge-wrap');
+  const prevSection = cur > 0 ? QUESTIONS[cur - 1].section : null;
+  if (q.section !== prevSection) {
+    const label = SECTION_LABELS[q.section];
+    badgeWrap.innerHTML = `<span class="section-badge ${label.class}">${label.text}</span>`;
+  } else {
+    badgeWrap.innerHTML = '';
+  }
 
   const area = document.getElementById('answer-area');
   area.innerHTML = '';
@@ -242,63 +413,22 @@ function nextQ() {
   else generateResult();
 }
 
-// ─── ГЛАВНАЯ ФУНКЦИЯ: отправляем данные в бот через Telegram ───
 async function generateResult() {
   show('loading');
-
   try {
-    // Отправляем данные напрямую в bot.py через Telegram WebApp API
     tg.sendData(JSON.stringify({
       name: userName,
+      age: userAge,
       answers: answers
     }));
-
-    // Через 1 сек показываем экран "данные отправлены"
-    setTimeout(() => {
-      show('result-sent');
-    }, 1000);
-
+    setTimeout(() => { show('result-sent'); }, 1000);
   } catch(e) {
     console.error(e);
-    showFallback();
+    show('result-sent');
   }
 }
 
-function showResult(data) {
-  show('result');
-  document.getElementById('result-title').textContent = `Твой план, ${userName}`;
-  const dGrid = document.getElementById('directions');
-  dGrid.innerHTML = '';
-  (data.directions||[]).forEach(d => {
-    dGrid.innerHTML += `<div class="direction"><div class="dir-icon">${d.icon}</div><div class="dir-name">${d.name}</div><div class="dir-match">${d.match}</div></div>`;
-  });
-  const sList = document.getElementById('steps');
-  sList.innerHTML = '';
-  (data.steps||[]).forEach((s,i) => {
-    sList.innerHTML += `<div class="step"><div class="step-num">${i+1}</div><div class="step-text">${s}</div></div>`;
-  });
-  document.getElementById('nova-msg').textContent = data.nova_message || '';
-}
-
-function showFallback() {
-  showResult({
-    directions:[
-      {icon:'💡', name:'Технологии', match:'Тебе нравится разбираться в сложных вещах'},
-      {icon:'🎨', name:'Творчество', match:'Ты умеешь создавать новое'},
-      {icon:'🤝', name:'Люди', match:'Ты чувствуешь других'}
-    ],
-    steps:[
-      'Выбери одно направление и найди 3 видео о нём',
-      'Поговори с кем-то кто работает в этой сфере',
-      'Пройди один бесплатный курс на Stepik',
-      'Веди дневник: что тебя зажигает каждый день',
-      'Через месяц поставь цель на следующие 3 месяца'
-    ],
-    nova_message:`${userName}, ты уже сделал важный шаг — начал думать о своём пути. Я здесь рядом.`
-  });
-}
-
-function restart() { cur=0; answers={}; show('welcome'); }
+function restart() { cur = 0; answers = {}; show('welcome'); }
 </script>
 </body>
 </html>
