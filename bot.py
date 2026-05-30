@@ -2,18 +2,18 @@ import os
 import json
 import asyncio
 import sqlite3
-import anthropic
+from openai import OpenAI
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MINI_APP_URL = os.getenv("MINI_APP_URL")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ─── БАЗА ДАННЫХ ───────────────────────────────────────────
 def init_db():
@@ -23,6 +23,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS sessions (
             user_id INTEGER PRIMARY KEY,
             name TEXT,
+            age TEXT,
             answers TEXT,
             report TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -31,13 +32,13 @@ def init_db():
     conn.commit()
     conn.close()
 
-def save_session(user_id, name, answers, report):
+def save_session(user_id, name, age, answers, report):
     conn = sqlite3.connect("novorostok.db")
     c = conn.cursor()
     c.execute("""
-        INSERT OR REPLACE INTO sessions (user_id, name, answers, report)
-        VALUES (?, ?, ?, ?)
-    """, (user_id, name,
+        INSERT OR REPLACE INTO sessions (user_id, name, age, answers, report)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, name, age,
           json.dumps(answers, ensure_ascii=False),
           json.dumps(report, ensure_ascii=False)))
     conn.commit()
@@ -54,76 +55,101 @@ def get_session(user_id):
 # ─── ПРОМПТ ────────────────────────────────────────────────
 NOVA_SYSTEM_PROMPT = """
 Ты — Нова, AI-наставник подростков проекта НовоРосток.
-Речь: тёплая, уважительная, как умный старший друг. Без пафоса.
+Речь: тёплая, уважительная, как умный старший друг. Без пафоса и без давления.
 
-Определи RIASEC-код (2-3 буквы):
-R=руками/практик, I=исследователь, A=творчество, S=помощь людям, E=лидер, C=порядок
+МЕТОДОЛОГИЯ АНАЛИЗА:
 
-Формула подбора: 0.4 x RIASEC + 0.4 x SoftSkills + 0.2 x потенциал
+1. RIASEC-код (2-3 буквы из R,I,A,S,E,C):
+R = Realistic — любит делать руками, чинить, строить
+I = Investigative — исследует, задаёт вопросы "почему", любит науку
+A = Artistic — творчество, создание, нестандартное мышление
+S = Social — помогает людям, любит общение, командная работа
+E = Enterprising — лидер, организатор, предприниматель
+C = Conventional — порядок, системы, чёткие правила, точность
 
-ФОРМАТ — строго JSON, без markdown, без лишнего текста:
+2. Soft Skills (топ-3 из ответов):
+Коммуникация, Эмпатия, Самоорганизация, Обучаемость, Креативность,
+Лидерство, Командная работа, Стрессоустойчивость, Аналитика, Саморефлексия
+
+3. Подбор профессий:
+Формула: 0.4 × RIASEC + 0.4 × SoftSkills + 0.2 × потенциал
+Учитывай возраст подростка при составлении плана.
+
+ФОРМАТ — строго JSON, без markdown:
 {
   "profile_title": "Технарь-Исследователь",
   "riasec_code": "IRC",
-  "riasec_explanation": "2 предложения простым языком",
+  "riasec_explanation": "2 предложения простым языком для подростка",
+  "soft_skills_top3": ["Аналитика", "Обучаемость", "Саморефлексия"],
   "directions": [
-    {"icon": "💻", "name": "IT и разработка", "match": "почему подходит", "match_pct": 87},
+    {"icon": "💻", "name": "IT и разработка", "match": "почему подходит — 1 предложение", "match_pct": 87},
     {"icon": "🔬", "name": "Наука и инженерия", "match": "почему подходит", "match_pct": 74},
     {"icon": "🎨", "name": "Дизайн и творчество", "match": "почему подходит", "match_pct": 61}
   ],
   "steps": [
     "На этой неделе: конкретное действие",
-    "В этом месяце: конкретный курс",
+    "В этом месяце: конкретный курс или ресурс",
     "Через 3 месяца: мини-проект",
-    "Через 6 месяцев: цель",
+    "Через 6 месяцев: измеримая цель",
     "Через год: результат"
   ],
-  "nova_message": "Личное послание подростку, 2-3 предложения.",
-  "parent_summary": "Для родителя: сильные стороны и 2 рекомендации."
+  "nova_message": "Личное послание подростку, 2-3 предложения. Честно и тепло.",
+  "parent_summary": "Для родителя: сильные стороны ребёнка и 2 конкретные рекомендации."
 }
 """
 
-def generate_report_sync(name: str, answers: dict) -> dict:
-    answers_text = f"Имя: {name}\n\n"
+def generate_report_sync(name: str, age: str, answers: dict) -> dict:
+    answers_text = f"Имя: {name}\nВозраст: {age} лет\n\n"
     for key, val in answers.items():
         answers_text += f"{key}: {val}\n"
 
-    response = claude.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1500,
-        system=NOVA_SYSTEM_PROMPT,
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
+            {"role": "system", "content": NOVA_SYSTEM_PROMPT},
             {"role": "user", "content": answers_text}
-        ]
+        ],
+        response_format={"type": "json_object"},
+        max_tokens=1500
     )
-    text = response.content[0].text
-    clean = text.replace("```json", "").replace("```", "").strip()
-    return json.loads(clean)
+    return json.loads(response.choices[0].message.content)
 
 # ─── ФОРМАТИРОВАНИЕ ────────────────────────────────────────
 def format_teen_report(report: dict, name: str) -> str:
     d = report.get("directions", [])
     steps = report.get("steps", [])
+    skills = report.get("soft_skills_top3", [])
+
     msg = f"🌱 *{name} — твой профиль готов!*\n\n"
     msg += f"*Ты — {report.get('profile_title', '')}*\n"
     msg += f"Код: {report.get('riasec_code', '')} — {report.get('riasec_explanation', '')}\n\n"
+
+    if skills:
+        msg += f"💪 *Твои сильные стороны:* {', '.join(skills)}\n\n"
+
     msg += "🎯 *Направления для тебя:*\n"
     for item in d:
         msg += f"{item.get('icon', '')} *{item.get('name', '')}* — {item.get('match_pct', '')}%\n"
         msg += f"{item.get('match', '')}\n"
+
     msg += "\n🗺 *Твой план:*\n"
     for step in steps:
         msg += f"• {step}\n"
+
     nova_msg = report.get("nova_message", "")
     if nova_msg:
         msg += f"\n💬 {nova_msg}"
+
     return msg
 
 def format_parent_report(report: dict, name: str) -> str:
     d = report.get("directions", [])
+    skills = report.get("soft_skills_top3", [])
     msg = f"👨‍👩‍👧 *Отчёт для родителей — {name}*\n\n"
     msg += f"*Профиль:* {report.get('profile_title', '')}\n"
     msg += f"*RIASEC:* {report.get('riasec_code', '')} — {report.get('riasec_explanation', '')}\n\n"
+    if skills:
+        msg += f"*Сильные стороны:* {', '.join(skills)}\n\n"
     msg += "*Направления:*\n"
     for item in d[:2]:
         msg += f"• {item.get('name', '')} ({item.get('match_pct', '')}%)\n"
@@ -132,12 +158,6 @@ def format_parent_report(report: dict, name: str) -> str:
         msg += f"\n{parent}"
     msg += "\n\n📌 Полный отчёт — на сайте НовоРосток."
     return msg
-
-# ─── ДЕБАГ: ловим ВСЕ входящие ────────────────────────────
-async def debug_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"🔍 ВХОДЯЩЕЕ СООБЩЕНИЕ: {update.message}")
-    if update.message and update.message.web_app_data:
-        print(f"✅ WEB_APP_DATA: {update.message.web_app_data.data}")
 
 # ─── ПОЛУЧЕНИЕ ДАННЫХ ИЗ WEBAPP ────────────────────────────
 async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -148,16 +168,18 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         payload = json.loads(data_str)
         name = payload.get("name", "друг")
+        age = payload.get("age", "")
         answers = payload.get("answers", {})
 
         await update.message.reply_text("⏳ Нова анализирует ответы... ~20 секунд 🌱")
 
-        report = await asyncio.to_thread(generate_report_sync, name, answers)
-        save_session(user_id, name, answers, report)
+        report = await asyncio.to_thread(generate_report_sync, name, age, answers)
+        save_session(user_id, name, age, answers, report)
 
         teen_msg = format_teen_report(report, name)
         await update.message.reply_text(teen_msg, parse_mode="Markdown")
         await update.message.reply_text("📩 Напиши /report — пришлю версию для родителей.")
+        print(f"✅ Отчёт отправлен {user_id}")
 
     except Exception as e:
         print(f"❌ Ошибка: {e}")
@@ -167,16 +189,18 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     name = user.first_name or "друг"
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton(
+    keyboard = ReplyKeyboardMarkup(
+        [[KeyboardButton(
             text="🌱 Начать с Новой",
             web_app=WebAppInfo(url=MINI_APP_URL)
-        )
-    ]])
+        )]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
     await update.message.reply_text(
         f"Привет, {name}! 👋\n\n"
         f"Я НовоРосток — здесь тебя ждёт Нова, твой личный AI-наставник.\n\n"
-        f"Займёт 5 минут. Без правильных ответов. Без давления.",
+        f"Займёт 10 минут. Без правильных ответов. Без давления.",
         reply_markup=keyboard
     )
 
@@ -194,16 +218,13 @@ async def cmd_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main():
     init_db()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    # Handlers — порядок важен
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("report", cmd_report))
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
-    app.add_handler(MessageHandler(filters.ALL, debug_all))  # дебаг — ловим всё
 
     print("✅ Бот НовоРосток запущен!")
     print(f"🔗 Mini App URL: {MINI_APP_URL}")
-    print(f"🤖 Anthropic key: {'OK' if ANTHROPIC_API_KEY else 'НЕТ КЛЮЧА!'}")
+    print(f"🤖 OpenAI key: {'OK' if OPENAI_API_KEY else 'НЕТ КЛЮЧА!'}")
 
     async with app:
         await app.start()
