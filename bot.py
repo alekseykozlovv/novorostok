@@ -1,15 +1,25 @@
 import os
+import sys
 import json
-import sys     
+import asyncio
+import sqlite3
 
+from dotenv import load_dotenv
+load_dotenv()  # ← загружает .env локально, на Railway игнорируется (и это ок)
+
+from openai import OpenAI
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+
+# Проверка обязательных переменных
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TELEGRAM_TOKEN = os.getenv("BOT_TOKEN")  # у тебя BOT_TOKEN, не TELEGRAM_TOKEN
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 if not OPENAI_API_KEY:
     print("ОШИБКА: OPENAI_API_KEY не установлен")
     sys.exit(1)
 
-if not TELEGRAM_TOKEN:
+if not BOT_TOKEN:
     print("ОШИБКА: BOT_TOKEN не установлен")
     sys.exit(1)
 import asyncio
