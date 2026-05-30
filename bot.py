@@ -3,37 +3,32 @@ import sys
 import json
 import asyncio
 import sqlite3
+import re
 
 from dotenv import load_dotenv
-load_dotenv()  # ← загружает .env локально, на Railway игнорируется (и это ок)
+load_dotenv()
 
 from openai import OpenAI
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.error import Forbidden
 
-# Проверка обязательных переменных
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# ─── ПРОВЕРКА ПЕРЕМЕННЫХ ───────────────────────────────────
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+MINI_APP_URL = os.getenv("MINI_APP_URL")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not BOT_TOKEN:
+    print("ОШИБКА: BOT_TOKEN не установлен")
+    sys.exit(1)
 
 if not OPENAI_API_KEY:
     print("ОШИБКА: OPENAI_API_KEY не установлен")
     sys.exit(1)
 
-if not BOT_TOKEN:
-    print("ОШИБКА: BOT_TOKEN не установлен")
+if not MINI_APP_URL:
+    print("ОШИБКА: MINI_APP_URL не установлен")
     sys.exit(1)
-import asyncio
-import sqlite3
-from openai import OpenAI
-from dotenv import load_dotenv
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-
-load_dotenv()
-
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-MINI_APP_URL = os.getenv("MINI_APP_URL")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -74,6 +69,41 @@ def get_session(user_id):
     conn.close()
     return row
 
+# ─── БЕЗОПАСНЫЙ ПАРСИНГ JSON ───────────────────────────────
+def safe_parse_json(text: str) -> dict:
+    """Парсит JSON от GPT даже если он обрёзан или в markdown"""
+    # Убираем markdown блоки
+    text = re.sub(r'```json\s*|\s*```', '', text).strip()
+    
+    # Пробуем прямой парсинг
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    
+    # Ищем JSON внутри текста
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+    
+    # Возвращаем заглушку — бот не упадёт
+    print(f"⚠️ Не удалось распарсить JSON. Текст: {text[:200]}")
+    return {
+        "profile_title": "Уникальная личность",
+        "riasec_code": "—",
+        "riasec_explanation": "Анализ временно недоступен. Попробуй ещё раз.",
+        "soft_skills_top3": ["Любознательность", "Настойчивость", "Креативность"],
+        "directions": [
+            {"icon": "🌱", "name": "Анализ недоступен", "match": "Попробуй пройти интервью снова", "match_pct": 0}
+        ],
+        "steps": ["Попробуй /start снова — иногда AI нужно чуть больше времени 🌱"],
+        "nova_message": "Ты молодец, что дошёл до конца! Попробуй ещё раз — я готова.",
+        "parent_summary": "Анализ временно недоступен. Попробуйте снова."
+    }
+
 # ─── ПРОМПТ ────────────────────────────────────────────────
 NOVA_SYSTEM_PROMPT = """
 Ты — Нова, AI-наставник подростков проекта НовоРосток.
@@ -97,7 +127,7 @@ C = Conventional — порядок, системы, чёткие правила
 Формула: 0.4 × RIASEC + 0.4 × SoftSkills + 0.2 × потенциал
 Учитывай возраст подростка при составлении плана.
 
-ФОРМАТ — строго JSON, без markdown:
+ФОРМАТ — строго JSON, без markdown, без пояснений вне JSON:
 {
   "profile_title": "Технарь-Исследователь",
   "riasec_code": "IRC",
@@ -132,9 +162,10 @@ def generate_report_sync(name: str, age: str, answers: dict) -> dict:
             {"role": "user", "content": answers_text}
         ],
         response_format={"type": "json_object"},
-        max_tokens=1500
+        max_tokens=1200
     )
-    return json.loads(response.choices[0].message.content)
+    raw = response.choices[0].message.content
+    return safe_parse_json(raw)
 
 # ─── ФОРМАТИРОВАНИЕ ────────────────────────────────────────
 def format_teen_report(report: dict, name: str) -> str:
@@ -142,7 +173,7 @@ def format_teen_report(report: dict, name: str) -> str:
     steps = report.get("steps", [])
     skills = report.get("soft_skills_top3", [])
 
-    msg = f"🌱 *{name} — твой профиль готов!*\n\n"
+    msg = f"🌱 *{name} — твой профиль готов\!*\n\n"
     msg += f"*Ты — {report.get('profile_title', '')}*\n"
     msg += f"Код: {report.get('riasec_code', '')} — {report.get('riasec_explanation', '')}\n\n"
 
@@ -178,7 +209,7 @@ def format_parent_report(report: dict, name: str) -> str:
     parent = report.get("parent_summary", "")
     if parent:
         msg += f"\n{parent}"
-    msg += "\n\n📌 Полный отчёт — на сайте НовоРосток."
+    msg += "\n\n📌 Полный отчёт — на сайте НовоРосток\."
     return msg
 
 # ─── ПОЛУЧЕНИЕ ДАННЫХ ИЗ WEBAPP ────────────────────────────
@@ -199,13 +230,26 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         save_session(user_id, name, age, answers, report)
 
         teen_msg = format_teen_report(report, name)
-        await update.message.reply_text(teen_msg, parse_mode="Markdown")
+        
+        try:
+            await update.message.reply_text(teen_msg, parse_mode="MarkdownV2")
+        except Exception as fmt_err:
+            print(f"⚠️ Ошибка форматирования, отправляю без markdown: {fmt_err}")
+            # Убираем markdown и отправляем чистый текст
+            clean_msg = re.sub(r'[*_`\[\]()~>#+=|{}.!\\]', '', teen_msg)
+            await update.message.reply_text(clean_msg)
+
         await update.message.reply_text("📩 Напиши /report — пришлю версию для родителей.")
         print(f"✅ Отчёт отправлен {user_id}")
 
+    except Forbidden:
+        print(f"⚠️ Пользователь {user_id} заблокировал бота — пропускаем")
     except Exception as e:
         print(f"❌ Ошибка: {e}")
-        await update.message.reply_text("Что-то пошло не так. Попробуй /start снова.")
+        await update.message.reply_text(
+            "Нова думает чуть дольше обычного 🌱\n"
+            "Попробуй /start снова через минуту."
+        )
 
 # ─── КОМАНДЫ ───────────────────────────────────────────────
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -227,14 +271,24 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def cmd_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    row = get_session(update.effective_user.id)
-    if row:
-        name, report_json = row
-        report = json.loads(report_json)
-        msg = format_parent_report(report, name)
-        await update.message.reply_text(msg, parse_mode="Markdown")
-    else:
-        await update.message.reply_text("Сначала пройди интервью: /start 🌱")
+    try:
+        row = get_session(update.effective_user.id)
+        if row:
+            name, report_json = row
+            report = json.loads(report_json)
+            msg = format_parent_report(report, name)
+            try:
+                await update.message.reply_text(msg, parse_mode="MarkdownV2")
+            except Exception:
+                clean_msg = re.sub(r'[*_`\[\]()~>#+=|{}.!\\]', '', msg)
+                await update.message.reply_text(clean_msg)
+        else:
+            await update.message.reply_text("Сначала пройди интервью: /start 🌱")
+    except Forbidden:
+        print(f"⚠️ Пользователь заблокировал бота")
+    except Exception as e:
+        print(f"❌ Ошибка в /report: {e}")
+        await update.message.reply_text("Попробуй /start снова 🌱")
 
 # ─── ЗАПУСК ────────────────────────────────────────────────
 async def main():
