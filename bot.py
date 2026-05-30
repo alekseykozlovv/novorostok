@@ -1,5 +1,15 @@
 import os
 import json
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+if not OPENAI_API_KEY:
+    print("ОШИБКА: OPENAI_API_KEY не установлен")
+    sys.exit(1)
+
+if not TELEGRAM_TOKEN:
+    print("ОШИБКА: TELEGRAM_TOKEN не установлен")
+    sys.exit(1)
 import asyncio
 import sqlite3
 from openai import OpenAI
