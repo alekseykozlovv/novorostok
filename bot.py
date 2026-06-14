@@ -4,6 +4,8 @@ import json
 import asyncio
 import sqlite3
 import re
+import requests
+from datetime import datetime
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -31,6 +33,24 @@ if not MINI_APP_URL:
     sys.exit(1)
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ─── АНАЛИТИКА → GOOGLE SHEETS ────────────────────────────
+SHEETS_WEBHOOK = "https://script.google.com/macros/s/AKfycbxutqYubF1d5bJ10awlMNSrQzkqQHa97uP2RXTduj1-ptTUHiLyLFKPovxu8Z7PdwoMRQ/exec"
+
+def log_event(user_id: int, username: str, event: str, details: str = ""):
+    """Отправляет событие в Google Sheets. Не блокирует бота при ошибке."""
+    try:
+        payload = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "user_id": str(user_id),
+            "username": username or "",
+            "event": event,
+            "details": details
+        }
+        requests.post(SHEETS_WEBHOOK, json=payload, timeout=5)
+        print(f"📊 Лог: {event} | {user_id} | {username}")
+    except Exception as e:
+        print(f"⚠️ Ошибка логирования (не критично): {e}")
 
 # ─── БАЗА ДАННЫХ ───────────────────────────────────────────
 def init_db():
@@ -71,25 +91,17 @@ def get_session(user_id):
 
 # ─── БЕЗОПАСНЫЙ ПАРСИНГ JSON ───────────────────────────────
 def safe_parse_json(text: str) -> dict:
-    """Парсит JSON от GPT даже если он обрёзан или в markdown"""
-    # Убираем markdown блоки
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
-    
-    # Пробуем прямой парсинг
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    
-    # Ищем JSON внутри текста
     match = re.search(r'\{.*\}', text, re.DOTALL)
     if match:
         try:
             return json.loads(match.group())
         except json.JSONDecodeError:
             pass
-    
-    # Возвращаем заглушку — бот не упадёт
     print(f"⚠️ Не удалось распарсить JSON. Текст: {text[:200]}")
     return {
         "profile_title": "Уникальная личность",
@@ -215,7 +227,9 @@ def format_parent_report(report: dict, name: str) -> str:
 # ─── ПОЛУЧЕНИЕ ДАННЫХ ИЗ WEBAPP ────────────────────────────
 async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data_str = update.effective_message.web_app_data.data
-    user_id = update.effective_user.id
+    user = update.effective_user
+    user_id = user.id
+    username = user.username or user.first_name or str(user_id)
     print(f"📥 Данные от {user_id}: {data_str[:80]}...")
 
     try:
@@ -224,18 +238,27 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         age = payload.get("age", "")
         answers = payload.get("answers", {})
 
+        # Считаем сколько вопросов answered
+        answered_count = len([v for v in answers.values() if v])
+        total_questions = len(answers)
+
         await update.message.reply_text("⏳ Нова анализирует ответы... ~20 секунд 🌱")
 
         report = await asyncio.to_thread(generate_report_sync, name, age, answers)
         save_session(user_id, name, age, answers, report)
 
+        # ✅ СОБЫТИЕ: завершил интервью
+        await asyncio.to_thread(
+            log_event, user_id, username,
+            "completed",
+            f"Имя: {name}, Возраст: {age}, Вопросов: {answered_count}/{total_questions}, Профиль: {report.get('profile_title','')}"
+        )
+
         teen_msg = format_teen_report(report, name)
-        
         try:
             await update.message.reply_text(teen_msg, parse_mode="MarkdownV2")
         except Exception as fmt_err:
             print(f"⚠️ Ошибка форматирования, отправляю без markdown: {fmt_err}")
-            # Убираем markdown и отправляем чистый текст
             clean_msg = re.sub(r'[*_`\[\]()~>#+=|{}.!\\]', '', teen_msg)
             await update.message.reply_text(clean_msg)
 
@@ -246,6 +269,12 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         print(f"⚠️ Пользователь {user_id} заблокировал бота — пропускаем")
     except Exception as e:
         print(f"❌ Ошибка: {e}")
+        # ❌ СОБЫТИЕ: бросил / ошибка
+        await asyncio.to_thread(
+            log_event, user_id, username,
+            "dropped",
+            f"Ошибка на этапе обработки: {str(e)[:100]}"
+        )
         await update.message.reply_text(
             "Нова думает чуть дольше обычного 🌱\n"
             "Попробуй /start снова через минуту."
@@ -255,6 +284,15 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     name = user.first_name or "друг"
+    username = user.username or user.first_name or str(user.id)
+
+    # 🚀 СОБЫТИЕ: запустил бота
+    await asyncio.to_thread(
+        log_event, user.id, username,
+        "started",
+        f"Имя в TG: {name}"
+    )
+
     keyboard = ReplyKeyboardMarkup(
         [[KeyboardButton(
             text="🌱 Начать с Новой",
