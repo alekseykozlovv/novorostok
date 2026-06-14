@@ -221,7 +221,7 @@ def format_parent_report(report: dict, name: str) -> str:
     parent = report.get("parent_summary", "")
     if parent:
         msg += f"\n{parent}"
-    msg += "\n\n📌 Полный отчёт — на сайте НовоРосток\."
+    msg += "\n\n📌 Оставь отзыв на novorostok.ru — и получи расширенный отчёт первым 🎁"
     return msg
 
 # ─── ПОЛУЧЕНИЕ ДАННЫХ ИЗ WEBAPP ────────────────────────────
@@ -262,7 +262,7 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             clean_msg = re.sub(r'[*_`\[\]()~>#+=|{}.!\\]', '', teen_msg)
             await update.message.reply_text(clean_msg)
 
-        await update.message.reply_text("📩 Напиши /report — пришлю версию для родителей.")
+        await update.message.reply_text("💬 Это базовый профиль — бесплатно и навсегда твой.\n\n🎁 Хочешь расширенный отчёт с планом на 5 лет, картой навыков и разделом для родителей?\nОставь отзыв на сайте 👉 novorostok.ru — и я пришлю его тебе первым!\n\n📩 Версия для родителей: /report")
         print(f"✅ Отчёт отправлен {user_id}")
 
     except Forbidden:
