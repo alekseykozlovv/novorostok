@@ -220,22 +220,60 @@ def format_teen_report(report: dict, name: str) -> str:
 def format_parent_report(report: dict, name: str) -> str:
     d = report.get("directions", [])
     skills = report.get("soft_skills_top3", [])
-    msg = f"👨‍👩‍👧 *Отчёт для родителей — {name}*\n\n"
-    msg += f"*Профиль:* {report.get('profile_title', '')}\n"
+
+    # Заголовок
+    msg = f"👨‍👩‍👧 Отчёт для родителей — {name}\n"
+    msg += "─" * 30 + "\n\n"
+
+    # Профиль
+    msg += f"📋 Профиль: {report.get('profile_title', '')}\n\n"
+
+    # Тип личности с расшифровкой
     riasec_map = {"R": "Практик", "I": "Исследователь", "A": "Творец", "S": "Помощник", "E": "Лидер", "C": "Организатор"}
     code = report.get("riasec_code", "")
-    decoded = " + ".join([riasec_map.get(c, c) for c in code])
-    msg += f"*Тип личности:* {code} ({decoded})\n"
-    msg += f"{report.get('riasec_explanation', '')}\n\n"
+    decoded = ", ".join([f"{c} — {riasec_map.get(c, c)}" for c in code])
+    msg += f"🔑 Тип личности: {code}\n"
+    msg += f"({decoded})\n\n"
+
+    # Объяснение — разбиваем на предложения
+    explanation = report.get("riasec_explanation", "")
+    sentences = [s.strip() for s in explanation.replace(". ", ".\n").split("\n") if s.strip()]
+    msg += "\n".join(sentences) + "\n\n"
+
+    # Сильные стороны
     if skills:
-        msg += f"*Сильные стороны:* {', '.join(skills)}\n\n"
-    msg += "*Направления:*\n"
+        msg += "💪 Сильные стороны:\n"
+        for skill in skills:
+            msg += f"  • {skill}\n"
+        msg += "\n"
+
+    # Направления
+    msg += "🎯 Подходящие направления:\n"
     for item in d[:2]:
-        msg += f"• {item.get('name', '')} ({item.get('match_pct', '')}%)\n"
+        msg += f"  • {item.get('name', '')} — {item.get('match_pct', '')}%\n"
+    msg += "\n"
+
+    # Резюме для родителя — разбиваем на части
     parent = report.get("parent_summary", "")
     if parent:
-        msg += f"\n{parent}"
-    msg += "\n\n📌 Оставьте отзыв на сайте novorostok.ru — и получите расширенный отчёт первым 🎁"
+        msg += "👀 О вашем ребёнке:\n"
+        # Разбиваем по "Рекомендуем:" или "Рекомендации:"
+        if "Рекомендуем" in parent or "Рекомендации" in parent:
+            parts = parent.replace("Рекомендуем:", "\n\n✅ Рекомендуем:\n").replace("Рекомендации:", "\n\n✅ Рекомендации:\n")
+            # Разбиваем нумерованные пункты
+            parts = parts.replace(" 1)", "\n  1)").replace(" 2)", "\n  2)").replace(" 3)", "\n  3)")
+            msg += parts + "\n"
+        else:
+            # Разбиваем по точкам на предложения
+            sentences = [s.strip() for s in parent.replace(". ", ".\n").split("\n") if s.strip()]
+            msg += "\n".join(sentences) + "\n"
+
+    # Финал — ссылка
+    msg += "\n" + "─" * 30 + "\n"
+    msg += "📌 Оставьте отзыв на сайте:\n"
+    msg += "novorostok.ru\n"
+    msg += "И получите расширенный отчёт первым 🎁"
+
     return msg
 
 # ─── ПОЛУЧЕНИЕ ДАННЫХ ИЗ WEBAPP ────────────────────────────
@@ -330,7 +368,7 @@ async def cmd_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
             report = json.loads(report_json)
             msg = format_parent_report(report, name)
             try:
-                await update.message.reply_text(msg, parse_mode="MarkdownV2")
+                await update.message.reply_text(msg)
             except Exception:
                 clean_msg = re.sub(r'[*_`\[\]()~>#+=|{}.!\\]', '', msg)
                 await update.message.reply_text(clean_msg)
