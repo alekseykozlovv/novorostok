@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>НовоРосток — Нова</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080d17;
+  --bg2: #0d1525;
+  --card: #111c30;
+  --card2: #162035;
+  --line: #1d2e47;
+  --ink: #f0f6ff;
+  --ink2: #7a9bbf;
+  --ink3: #44607f;
+  --cyan: #00d4ff;
+  --cyan-d: #0099bb;
+  --cyan-glow: rgba(0,212,255,0.18);
+  --cyan-soft: rgba(0,212,255,0.08);
+  --cyan-ink: #52dcff;
+  --mint: #00ffb3;
+  --mint-soft: rgba(0,255,179,0.08);
+  --coral: #ff5f7a;
+  --gold: #ffc643;
+  --grad: linear-gradient(135deg, #00d4ff 0%, #00ffb3 100%);
+}
+
+html, body { height: 100%; background: var(--bg); }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+#app { max-width: 430px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; position: relative; }
+
+/* ── screens ── */
+.screen { display: none; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+.screen.active { display: flex; }
+.grow { flex: 1; }
+
+/* ══════════════════════════════════════
+   1. WELCOME SCREEN
+══════════════════════════════════════ */
+#s-welcome {
+  padding: 0;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* Hero band */
+.w-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 24px 22px;
+  background: radial-gradient(ellipse 90% 70% at 50% 10%, rgba(0,212,255,0.12) 0%, transparent 70%);
+}
+.w-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cyan-ink);
+  background: var(--cyan-soft);
+  letter-spacing: .04em;
+  margin-bottom: 22px;
+}
+.w-avatar-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 20px;
+}
+.w-avatar-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,212,255,0.25);
+  animation: pulse-ring 3s ease-in-out infinite;
+}
+.w-avatar-ring2 {
+  position: absolute;
+  inset: -18px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,212,255,0.1);
+  animation: pulse-ring 3s ease-in-out infinite .6s;
+}
+@keyframes pulse-ring { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(1.06);} }
+
+.w-avatar-img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 8%;
+  background: radial-gradient(circle at 50% 30%, #16314a, #0a1422);
+  border: 2.5px solid rgba(0,212,255,0.5);
+  box-shadow: 0 0 32px rgba(0,212,255,0.25), inset 0 0 20px rgba(0,212,255,0.1);
+  animation: float 6s ease-in-out infinite;
+}
+.w-avatar-fallback {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 54px;
+  background: radial-gradient(circle at 50% 30%, #16314a, #0a1422);
+  border: 2.5px solid rgba(0,212,255,0.5);
+  box-shadow: 0 0 32px rgba(0,212,255,0.25);
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+@media (prefers-reduced-motion:reduce){ .w-avatar-img,.w-avatar-fallback{animation:none;} .w-avatar-ring,.w-avatar-ring2{animation:none;} }
+
+.w-nova-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink2);
+}
+.w-dot-online {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 8px var(--mint);
+}
+
+/* Chat bubble */
+.w-bubble {
+  margin: 4px 24px 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px 18px 18px 4px;
+  padding: 14px 16px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+  position: relative;
+}
+.w-bubble-tail {
+  position: absolute;
+  bottom: -1px;
+  left: -8px;
+  width: 16px;
+  height: 12px;
+  background: var(--card);
+  border-left: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-bottom-left-radius: 50%;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  transform: rotate(0deg);
+}
+.w-bubble strong { color: var(--cyan-ink); }
+
+/* Feature pills */
+.w-feats {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px 0;
+  flex-wrap: wrap;
+}
+.w-feat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink2);
+  background: var(--card);
+}
+
+/* Path preview */
+.w-path {
+  margin: 16px 24px 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: var(--card2);
+}
+.w-path-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 12px;
+}
+.w-path-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.w-path-node {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--cyan);
+  background: var(--cyan-soft);
+  color: var(--cyan-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.w-path-line {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.w-path-dash {
+  flex: 1;
+  height: 2px;
+  border-top: 2px dashed var(--ink3);
+  opacity: .5;
+}
+.w-path-xp {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  flex: 0 0 auto;
+}
+
+/* Welcome form */
+.w-form {
+  padding: 16px 24px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.w-heading {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  margin-bottom: 2px;
+}
+.w-heading .grad-text {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ══════════════════════════════════════
+   SHARED ATOMS
+══════════════════════════════════════ */
+.field {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 14px 16px;
+  font-size: 16px;
+  color: var(--ink);
+  font-family: inherit;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.field::placeholder { color: var(--ink3); }
+.field:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-glow); }
+textarea.field { min-height: 110px; resize: none; line-height: 1.5; }
+
+.cta {
+  width: 100%;
+  border: none;
+  border-radius: 13px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  background: var(--grad);
+  color: #031018;
+  box-shadow: 0 8px 24px rgba(0,212,255,0.28);
+  transition: transform .12s, box-shadow .12s, opacity .2s;
+  letter-spacing: -.01em;
+}
+.cta:active { transform: translateY(1px); box-shadow: 0 4px 12px rgba(0,212,255,0.2); }
+.cta:disabled { opacity: .4; box-shadow: none; cursor: not-allowed; }
+.ghost {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  color: var(--ink2);
+  transition: border-color .15s;
+}
+.ghost:hover { border-color: var(--ink3); }
+
+.privacy-note {
+  text-align: center;
+  color: var(--ink3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ══════════════════════════════════════
+   2. QUIZ SCREEN (один вопрос + XP, стиль C)
+══════════════════════════════════════ */
+#s-quiz {
+  padding: 0;
+  background: var(--bg);
+}
+
+.q-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 0;
+  gap: 10px;
+}
+.q-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 5px 11px;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: var(--card);
+  color: var(--ink);
+}
+.q-xp-badge {
+  background: rgba(255,198,67,0.12);
+  border-color: rgba(255,198,67,0.35);
+  color: var(--gold);
+}
+.q-streak {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--coral);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Progress track */
+.q-track-wrap {
+  padding: 12px 20px 0;
+}
+.q-track {
+  height: 5px;
+  background: var(--card);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.q-fill {
+  height: 100%;
+  background: var(--grad);
+  border-radius: 5px;
+  transition: width .4s cubic-bezier(.3,.8,.3,1);
+  box-shadow: 0 0 10px rgba(0,212,255,.5);
+}
+.q-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+.q-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--cyan-ink);
+}
+.q-count {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+/* Nova chat head */
+.q-nova-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 16px 20px 0;
+}
+.q-nova-ava {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,212,255,.4);
+  background: radial-gradient(circle at 50% 30%, #16314a, #0a1422);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex: 0 0 auto;
+  box-shadow: 0 0 12px rgba(0,212,255,.2);
+}
+.q-nova-ava img {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 8%;
+}
+.q-bubble {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px 16px 16px 4px;
+  padding: 12px 15px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  flex: 1;
+  animation: slideIn .3s cubic-bezier(.2,.8,.25,1);
+}
+.q-bubble em { font-style: normal; color: var(--cyan-ink); font-weight: 600; }
+@keyframes slideIn { from{transform:translateY(8px);opacity:0;} to{transform:none;opacity:1;} }
+@media (prefers-reduced-motion:reduce){.q-bubble{animation:none;}}
+
+/* Question body */
+.q-body {
+  padding: 0 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.opts {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 13px 15px;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .08s;
+  line-height: 1.35;
+}
+.opt:active { transform: scale(.99); }
+.opt .em { font-size: 18px; flex: 0 0 auto; }
+.opt .dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--ink3);
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color .15s;
+}
+.opt.sel {
+  border-color: var(--cyan);
+  background: var(--cyan-soft);
+  box-shadow: 0 0 0 1px rgba(0,212,255,.2);
+}
+.opt.sel .dot { border-color: var(--cyan); }
+.opt.sel .dot::after { content:''; width:8px; height:8px; border-radius:50%; background:var(--cyan); display:block; }
+
+.q-err {
+  display: none;
+  background: rgba(255,95,122,.08);
+  border: 1px solid rgba(255,95,122,.3);
+  color: var(--coral);
+  border-radius: 11px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin: 0 20px;
+}
+
+.q-actions {
+  padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ══════════════════════════════════════
+   3. LOADING SCREEN
+══════════════════════════════════════ */
+#s-loading {
+  background: var(--bg);
+}
+.loading-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  padding: 40px 30px;
+}
+.nova-thinking {
+  position: relative;
+  width: 80px; height: 80px;
+}
+.nova-thinking-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--cyan);
+  border-right-color: var(--mint);
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.nova-thinking-core {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #16314a, #0a1422);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  border: 1px solid rgba(0,212,255,.3);
+}
+.loading-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: -4px;
+}
+.loading-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: dot-bounce .8s ease-in-out infinite;
+}
+.loading-dot:nth-child(2) { animation-delay: .15s; background: rgba(0,212,255,.6); }
+.loading-dot:nth-child(3) { animation-delay: .3s; background: rgba(0,212,255,.3); }
+@keyframes dot-bounce { 0%,80%,100%{transform:scale(1);opacity:.5;} 40%{transform:scale(1.4);opacity:1;} }
+
+/* ══════════════════════════════════════
+   4. RESULTS SCREEN (тёплый отчёт, стиль B)
+══════════════════════════════════════ */
+#s-reveal {
+  padding: 0;
+  background: var(--bg);
+}
+
+.rv-hero {
+  padding: 24px 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,212,255,0.1) 0%, transparent 70%);
+}
+.rv-unlocked {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: var(--grad);
+  color: #031018;
+  margin-bottom: 16px;
+  animation: pop .5s cubic-bezier(.2,1.3,.4,1);
+}
+@keyframes pop { 0%{transform:scale(.85);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+
+.rv-ava {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(0,212,255,.5);
+  background: radial-gradient(circle at 50% 30%, #16314a, #0a1422);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  box-shadow: 0 0 24px rgba(0,212,255,.2);
+  margin-bottom: 14px;
+}
+.rv-ava img {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 8%;
+}
+
+.rv-greeting {
+  font-size: 13px;
+  color: var(--ink2);
+  margin-bottom: 4px;
+}
+.rv-type-name {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+  animation: pop .5s .1s cubic-bezier(.2,1.3,.4,1) both;
+}
+.rv-desc {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink2);
+  max-width: 300px;
+  margin-bottom: 16px;
+}
+
+/* Trait cards row */
+.rv-traits {
+  display: flex;
+  gap: 9px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+.rv-trait {
+  flex: 1;
+  border: 1px solid rgba(0,212,255,.3);
+  background: var(--cyan-soft);
+  border-radius: 13px;
+  padding: 11px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  animation: pop .45s cubic-bezier(.2,1.3,.4,1) both;
+}
+.rv-trait:nth-child(2) { animation-delay: .08s; }
+.rv-trait .em { font-size: 22px; }
+.rv-trait .nm { font-size: 12.5px; font-weight: 700; color: var(--cyan-ink); text-align: center; }
+.rv-trait.locked {
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--ink3);
+}
+.rv-trait.locked .nm { color: var(--ink3); }
+
+/* Scroll content */
+.rv-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rv-section {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 15px;
+  background: var(--card);
+}
+.rv-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 12px;
+}
+
+/* Interest bars */
+.bar-row { display: flex; flex-direction: column; gap: 5px; }
+.bar-row + .bar-row { margin-top: 10px; }
+.bar-meta { display: flex; justify-content: space-between; align-items: center; }
+.bar-title { font-size: 13.5px; color: var(--ink); }
+.bar-pct { font-size: 12px; font-weight: 700; color: var(--cyan-ink); }
+.bar-track { height: 7px; background: var(--bg2); border-radius: 7px; overflow: hidden; border: 1px solid var(--line); }
+.bar-fill { height: 100%; background: var(--grad); border-radius: 7px; box-shadow: 0 0 8px rgba(0,212,255,.35); }
+
+/* Steps */
+.step-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.step-row + .step-row { margin-top: 12px; }
+.step-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--cyan-soft);
+  border: 1px solid rgba(0,212,255,.4);
+  color: var(--cyan-ink);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.step-text { font-size: 14px; line-height: 1.5; color: var(--ink); }
+
+/* Nova message */
+.rv-nova-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.rv-nova-ava {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0,212,255,.4);
+  background: radial-gradient(circle at 50% 30%, #16314a, #0a1422);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex: 0 0 auto;
+  box-shadow: 0 0 8px rgba(0,212,255,.15);
+}
+.rv-nova-ava img {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 8%;
+}
+.rv-nova-bubble {
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 14px 4px;
+  padding: 11px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+  flex: 1;
+}
+.rv-nova-bubble strong { color: var(--cyan-ink); }
+
+/* Parent section */
+.rv-parent {
+  border: 1px solid rgba(0,255,179,.2);
+  background: var(--mint-soft);
+  border-radius: 16px;
+  padding: 14px 15px;
+}
+.rv-parent-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #00cc8e;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.rv-parent-text { font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+
+/* CTA section */
+.rv-cta-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  left: 50%;
+  top: 16%;
+  transform: translateX(-50%) translateY(-12px);
+  z-index: 99;
+  background: var(--grad);
+  color: #031018;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 11px 20px;
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0,212,255,.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s, transform .3s;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Micro animation for question reveal ── */
+.anim-in { animation: slideIn .3s cubic-bezier(.2,.8,.25,1); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ 1. WELCOME ══ -->
+  <section class="screen active" id="s-welcome">
+    <div class="w-hero">
+      <div class="w-chip">🌱 НовоРосток</div>
+      <div class="w-avatar-wrap">
+        <div class="w-avatar-ring"></div>
+        <div class="w-avatar-ring2"></div>
+        <img class="w-avatar-img" src="robot_no_background.png" alt="Нова"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+        <div class="w-avatar-fallback" style="display:none;">🤖</div>
+      </div>
+      <div class="w-nova-badge">
+        <span class="w-dot-online"></span>
+        Нова онлайн
+      </div>
+    </div>
+
+    <div class="w-bubble" style="margin-top:16px;">
+      <span class="w-bubble-tail"></span>
+      Привет! Я <strong>Нова</strong> — твой AI-наставник. Давай пройдём небольшой квест
+      и я расскажу, в чём твои сильные стороны и куда двигаться дальше. Без правильных ответов — только честный разговор 🙂
+    </div>
+
+    <div class="w-feats">
+      <div class="w-feat">🎯 Интересы</div>
+      <div class="w-feat">💪 Сильные стороны</div>
+      <div class="w-feat">🚀 Направления</div>
+    </div>
+
+    <div class="w-path">
+      <div class="w-path-label">Твой путь · 3 уровня</div>
+      <div class="w-path-track">
+        <div class="w-path-node">1</div>
+        <div class="w-path-line">
+          <div class="w-path-dash"></div>
+          <div class="w-path-xp">+50 XP</div>
+          <div class="w-path-dash"></div>
+        </div>
+        <div class="w-path-node">2</div>
+        <div class="w-path-line">
+          <div class="w-path-dash"></div>
+          <div class="w-path-xp">+50 XP</div>
+          <div class="w-path-dash"></div>
+        </div>
+        <div class="w-path-node">3</div>
+      </div>
+    </div>
+
+    <div class="w-form">
+      <div class="w-heading">Как тебя <span class="grad-text">зовут?</span></div>
+      <input class="field" id="in-name" type="text" placeholder="Твоё имя" autocomplete="off" />
+      <input class="field" id="in-age" type="text" inputmode="numeric" placeholder="Сколько тебе лет?" autocomplete="off" />
+      <button class="cta" id="btn-start">Начать квест 🌿</button>
+      <p class="privacy-note">🔒 Конфиденциально · без оценок · можно остановиться в любой момент</p>
+    </div>
+  </section>
+
+  <!-- ══ 2. QUIZ ══ -->
+  <section class="screen" id="s-quiz">
+    <div class="q-topbar">
+      <div class="q-badge" id="q-level">Уровень 1</div>
+      <div class="q-streak" id="q-streak">🔥 серия 0</div>
+      <div class="q-badge q-xp-badge" id="q-xp">⭐ 0 XP</div>
+    </div>
+    <div class="q-track-wrap">
+      <div class="q-track"><div class="q-fill" id="q-fill" style="width:0%"></div></div>
+      <div class="q-meta">
+        <span class="q-section-label" id="q-section">Интересы</span>
+        <span class="q-count" id="q-count">1 / 15</span>
+      </div>
+    </div>
+
+    <div class="q-nova-row">
+      <div class="q-nova-ava">
+        <img src="robot_no_background.png" alt="Нова"
+          onerror="this.style.display='none'; this.parentElement.textContent='🌱';" />
+      </div>
+      <div class="q-bubble" id="q-bubble">Вопрос загружается…</div>
+    </div>
+
+    <div class="q-body" id="q-body"></div>
+
+    <div class="q-err" id="q-err">Выбери или напиши ответ — подходит любой 🙂</div>
+
+    <div class="q-actions">
+      <button class="cta" id="btn-next">Далее →</button>
+      <button class="ghost" id="btn-back" style="display:none;">← Назад</button>
+    </div>
+  </section>
+
+  <!-- ══ 3. LOADING ══ -->
+  <section class="screen" id="s-loading">
+    <div class="loading-center">
+      <div class="nova-thinking">
+        <div class="nova-thinking-ring"></div>
+        <div class="nova-thinking-core">🌱</div>
+      </div>
+      <div class="loading-dots">
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+      </div>
+      <div style="font-size:19px; font-weight:700; line-height:1.2;">Нова собирает<br>твой профиль</div>
+      <div style="color:var(--ink2); font-size:14px; max-width:260px; line-height:1.6;">
+        Анализирую ответы и подбираю направления специально для тебя…
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 4. RESULTS ══ -->
+  <section class="screen" id="s-reveal">
+    <div class="rv-hero">
+      <div class="rv-unlocked">★ ПРОФИЛЬ РАЗБЛОКИРОВАН</div>
+      <div class="rv-ava">
+        <img src="robot_no_background.png" alt="Нова"
+          onerror="this.style.display='none'; this.parentElement.textContent='🌱';" />
+      </div>
+      <div class="rv-greeting" id="rv-greeting">Твой тип</div>
+      <div class="rv-type-name" id="rv-type">Создатель</div>
+      <div class="rv-desc" id="rv-desc">Ты человек дела — тебе важно создавать, строить и видеть результат своими руками.</div>
+      <div class="rv-traits" id="rv-traits"></div>
+    </div>
+
+    <div class="rv-scroll" id="rv-scroll">
+
+      <!-- Интересы bars -->
+      <div class="rv-section">
+        <div class="rv-section-label">📊 Карта интересов</div>
+        <div id="rv-bars"></div>
+      </div>
+
+      <!-- Первые шаги -->
+      <div class="rv-section">
+        <div class="rv-section-label">🗺 Первые шаги</div>
+        <div id="rv-steps"></div>
+      </div>
+
+      <!-- Nova message -->
+      <div class="rv-nova-msg">
+        <div class="rv-nova-ava">
+          <img src="robot_no_background.png" alt="Нова"
+            onerror="this.style.display='none'; this.parentElement.textContent='🌱';" />
+        </div>
+        <div class="rv-nova-bubble" id="rv-nova-text">
+          Это только начало, <strong id="rv-name-msg"></strong>! Полный план и разбор я пришлю тебе в чат Telegram. Там мы продолжим 🚀
+        </div>
+      </div>
+
+      <!-- Parent section -->
+      <div class="rv-parent">
+        <div class="rv-parent-title">👨‍👩‍👧 Для родителей</div>
+        <div class="rv-parent-text" id="rv-parent-text">
+          Ваш ребёнок прошёл первый этап профильного исследования. Полный отчёт — в чате Telegram.
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="rv-cta-wrap">
+        <button class="cta" id="btn-finish">Получить план в Telegram →</button>
+        <p class="privacy-note">Нова пришлёт персональный разбор прямо в чат</p>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ── Telegram ── */
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+if (tg) {
+  tg.ready(); tg.expand();
+  try { tg.setHeaderColor('#080d17'); tg.setBackgroundColor('#080d17'); } catch(e){}
+  try { tg.MainButton.onClick(() => mainHandler && mainHandler()); } catch(e){}
+  try { tg.BackButton.onClick(() => backHandler && backHandler()); } catch(e){}
+}
+let mainHandler = null, backHandler = null;
+
+function haptic(kind){
+  try {
+    if (!tg || !tg.HapticFeedback) return;
+    if (kind === 'sel') tg.HapticFeedback.selectionChanged();
+    else if (kind === 'ok') tg.HapticFeedback.impactOccurred('light');
+    else if (kind === 'win') tg.HapticFeedback.notificationOccurred('success');
+  } catch(e){}
+}
+function setMain(text, handler){
+  mainHandler = handler;
+  if (tg && tg.MainButton){
+    tg.MainButton.setParams({ text, color:'#00d4ff', text_color:'#021019' });
+    tg.MainButton.show();
+  }
+}
+function hideMain(){ if(tg&&tg.MainButton) tg.MainButton.hide(); mainHandler = null; }
+function setBack(handler){ backHandler = handler; if(tg&&tg.BackButton){ handler ? tg.BackButton.show() : tg.BackButton.hide(); } }
+
+/* ── Questions ── */
+const QUESTIONS = [
+  { id:'r1', section:'Интересы', type:'single', holland:true,
+    text:'Что тебе ближе всего в свободное время?',
+    options:['🔧 Делать, чинить, собирать руками','🔬 Разбираться, как всё устроено','🎨 Рисовать, писать, придумывать','🤝 Общаться и помогать людям','🚀 Организовывать и вести команду','📋 Наводить порядок, работать с данными'] },
+  { id:'r2', section:'Интересы', type:'single', holland:true,
+    text:'Ты нашёл сломанный гаджет. Что сделаешь?',
+    options:['🛠 Разберу и попробую починить','🔍 Поищу, как он устроен','✏️ Придумаю, как его улучшить','💬 Спрошу опытного человека','📦 Быстро организую ремонт','🗂 Запишу проблему и найду инструкцию'] },
+  { id:'r3', section:'Интересы', type:'single', holland:true,
+    text:'Какой предмет даётся легче и нравится больше?',
+    options:['⚙️ Технология, физика, информатика','🧪 Биология, химия, математика','🎭 Литература, ИЗО, музыка','🌍 История, обществознание','💼 Экономика, предпринимательство','📊 Математика, статистика, таблицы'] },
+  { id:'r4', section:'Интересы', type:'single', holland:true,
+    text:'Когда ты чувствуешь себя на максимуме?',
+    options:['🔨 Когда создаю что-то руками','💡 Когда решаю сложную задачу','🎬 Когда творю — рисую, пишу, снимаю','❤️ Когда помогаю и чувствую благодарность','🏆 Когда веду команду к цели','✅ Когда всё чётко и по плану'] },
+  { id:'r5', section:'Интересы', type:'single', holland:true,
+    text:'Что тебя раздражает больше всего?',
+    options:['😤 Сидеть без дела, нет практики','😴 Не понимать суть, поверхностность','🥱 Скучные шаблоны без творчества','😞 Работать в одиночку без общения','😑 Выполнять чужие решения','😵 Хаос и отсутствие системы'] },
+  { id:'r6', section:'Интересы', type:'text',
+    text:'Если бы деньги и мнение других не имели значения — чем бы ты занимался каждый день?',
+    placeholder:'Первое, что приходит в голову — напиши честно 😊' },
+
+  { id:'s1', section:'Сильные стороны', type:'single',
+    text:'Как тебе комфортнее работать?',
+    options:['🎧 Один — в тишине лучше думается','👥 В команде — идеи рождаются в общении','🔄 По-разному, зависит от задачи'] },
+  { id:'s2', section:'Сильные стороны', type:'single',
+    text:'Берёшься за новую сложную задачу — что происходит?',
+    options:['🔥 Загораюсь, люблю новое','🤔 Осторожно изучаю перед стартом','😬 Немного тревожусь, но справляюсь','😰 Предпочитаю знакомые задачи'] },
+  { id:'s3', section:'Сильные стороны', type:'single',
+    text:'Что у тебя получается лучше всего по мнению других?',
+    options:['💬 Объяснять и доносить идеи','🧩 Находить нестандартные решения','📅 Организовывать и планировать','🌱 Поддерживать и слушать','⚡ Быстро брать инициативу','🔎 Замечать детали и ошибки'] },
+  { id:'s4', section:'Сильные стороны', type:'single',
+    text:'Как реагируешь, когда что-то идёт не по плану?',
+    options:['🛠 Ищу новое решение — это интересно','📞 Прошу помощи у других','😤 Расстраиваюсь, но продолжаю','⏸ Делаю паузу и обдумываю'] },
+  { id:'s5', section:'Сильные стороны', type:'text',
+    text:'Напиши 2–3 вещи, которые у тебя точно получаются хорошо',
+    placeholder:'Например: быстро учусь, хорошо рисую, умею объяснять…' },
+
+  { id:'m1', section:'Будущее', type:'single',
+    text:'Что тебя сейчас беспокоит больше всего?',
+    options:['🧭 Не знаю, кем хочу быть','😰 Давление взрослых с выбором профессии','📚 Трудно совмещать учёбу и интересы','💪 Не уверен в своих силах','🗺 Всё ок, хочу понять направление'] },
+  { id:'m2', section:'Будущее', type:'single',
+    text:'Что тебе важнее в будущей профессии?',
+    options:['💰 Хороший доход и стабильность','❤️ Помогать людям и делать мир лучше','🎯 Делать то, что искренне нравится','🌟 Быть известным и влиятельным','🔓 Свобода и независимость'] },
+  { id:'m3', section:'Будущее', type:'text',
+    text:'Чем ты занимаешься в интернете чаще всего?',
+    placeholder:'YouTube, игры, чтение — всё подходит, напиши честно 🙂' },
+  { id:'m4', section:'Будущее', type:'text',
+    text:'Через 5 лет — каким ты хочешь видеть себя?',
+    placeholder:'Описывай мечту, не «правильный» ответ 🌟' },
+];
+
+const LEVELS = [
+  { n:1, label:'Интересы',        start:0  },
+  { n:2, label:'Сильные стороны', start:6  },
+  { n:3, label:'Будущее',         start:11 },
+];
+function levelOf(i){ let L=LEVELS[0]; for(const l of LEVELS){ if(i>=l.start) L=l; } return L; }
+
+const TYPES = [
+  { key:'R', title:'Создатель',      em:'🔧', nick:'Мастер',      desc:'Ты человек дела — создаёшь, строишь и видишь результат своими руками.' },
+  { key:'I', title:'Исследователь',  em:'🔬', nick:'Аналитик',    desc:'Ты докапываешься до сути — тебе важно понять, как всё устроено на самом деле.' },
+  { key:'A', title:'Творец',         em:'🎨', nick:'Художник',     desc:'Ты мыслишь образами — создаёшь то, чего ещё не было в мире.' },
+  { key:'S', title:'Помощник',       em:'🤝', nick:'Душа',         desc:'Тебе важны люди — ты умеешь слышать, поддерживать и вести за собой.' },
+  { key:'E', title:'Лидер',          em:'🚀', nick:'Капитан',      desc:'Ты запускаешь и ведёшь — тебе нужны цели, команда и движение вперёд.' },
+  { key:'C', title:'Аналитик',       em:'📊', nick:'Систематизатор',desc:'Ты любишь порядок и точность — создаёшь системы, которые работают без сбоев.' },
+];
+
+const STEPS_BY_TYPE = [
+  // R
+  ['Разобрать старый гаджет или механизм дома — просто чтобы понять, как работает',
+   'Попробовать сделать что-то руками: скворечник, светильник, мебель',
+   'Посмотреть 3 ролика о профессии инженера или технолога',
+   'Найти кружок робототехники или мастерскую рядом с домом',
+   'Поговорить с кем-то, кто работает руками — узнать, как он туда попал'],
+  // I
+  ['Выбрать одну научную тему и изучать её 15 минут каждый день',
+   'Пройти бесплатный курс по математике или биологии на Stepik',
+   'Прочитать одну научно-популярную книгу в этом месяце',
+   'Записать 5 вопросов о мире, на которые ты хочешь найти ответ',
+   'Участвовать в олимпиаде или конкурсе по любимому предмету'],
+  // A
+  ['Начать личный проект: блог, зарисовки, музыка — без цели "стать лучшим"',
+   'Посмотреть документальный фильм о художнике или дизайнере, которого уважаешь',
+   'Попробовать новый формат: если рисуешь — напиши, если пишешь — сними',
+   'Показать свои работы хотя бы одному человеку и спросить честное мнение',
+   'Найти сообщество по своему творческому направлению онлайн'],
+  // S
+  ['Побыть волонтёром хотя бы один раз — в любой организации',
+   'Поговорить с психологом, социальным работником или учителем об их работе',
+   'Помочь кому-то из близких в чём-то конкретном и заметить, как это ощущается',
+   'Прочитать книгу по психологии или коммуникации (например, Гоулман)',
+   'Попробовать роль организатора в классе или компании'],
+  // E
+  ['Взять ответственность за один небольшой проект в школе или дома',
+   'Прочитать биографию одного предпринимателя или лидера',
+   'Придумать и предложить улучшение в любом месте, где бываешь',
+   'Потренироваться публично выступать — хотя бы перед друзьями',
+   'Найти наставника или ментора в интересной тебе сфере'],
+  // C
+  ['Создать таблицу для чего-то важного в своей жизни — расходов, привычек, целей',
+   'Упорядочить что-то, что давно в хаосе — документы, папки, расписание',
+   'Пройти базовый курс по Excel, Python или аналитике данных',
+   'Найти задачу, которую можно решить через данные, и попробовать',
+   'Поговорить с кем-то, кто работает с числами или системами — бухгалтером, аналитиком'],
+];
+
+/* ── State ── */
+const SAVE_KEY = 'novorostok_v2';
+let cur = 0, answers = {}, idxMap = {}, userName = '', userAge = '', xp = 0;
+
+function save(){
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ cur, answers, idxMap, userName, userAge, xp })); } catch(e){}
+}
+function restore(){
+  try {
+    const raw = localStorage.getItem(SAVE_KEY); if(!raw) return false;
+    const d = JSON.parse(raw); if(!d||!d.userName) return false;
+    cur=d.cur||0; answers=d.answers||{}; idxMap=d.idxMap||{}; userName=d.userName||''; userAge=d.userAge||''; xp=d.xp||0;
+    return true;
+  } catch(e){ return false; }
+}
+function clearSave(){ try { localStorage.removeItem(SAVE_KEY); } catch(e){} }
+
+const $ = s => document.querySelector(s);
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('#s-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+/* Prefill TG name */
+if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name){
+  $('#in-name').value = tg.initDataUnsafe.user.first_name;
+}
+
+/* ── Welcome ── */
+function showWelcome(){ show('welcome'); hideMain(); setBack(null); }
+
+$('#btn-start').addEventListener('click', startQuiz);
+function startQuiz(){
+  const n = $('#in-name').value.trim();
+  const a = $('#in-age').value.trim();
+  if (n.length < 2){ $('#in-name').focus(); return; }
+  userName = n; userAge = a;
+  if (!Object.keys(answers).length){ cur = 0; xp = 0; }
+  haptic('ok'); save();
+  show('quiz'); renderQ();
+}
+
+/* ── Quiz ── */
+let lastLevel = 1;
+function renderQ(){
+  const q = QUESTIONS[cur];
+  const L = levelOf(cur);
+  const pct = Math.round((cur / QUESTIONS.length) * 100);
+
+  $('#q-level').textContent = 'Уровень ' + L.n;
+  $('#q-section').textContent = L.label;
+  $('#q-count').textContent = (cur+1) + ' / ' + QUESTIONS.length;
+  $('#q-fill').style.width = pct + '%';
+  $('#q-streak').textContent = '🔥 серия ' + Object.keys(answers).length;
+  $('#q-xp').textContent = '⭐ ' + xp + ' XP';
+  $('#q-err').style.display = 'none';
+  $('#btn-back').style.display = cur > 0 ? 'block' : 'none';
+  $('#btn-next').textContent = cur === QUESTIONS.length - 1 ? 'Получить результат ✓' : 'Далее →';
+
+  setMain($('#btn-next').textContent, nextQ);
+  setBack(cur > 0 ? prevQ : null);
+
+  // Nova bubble text
+  $('#q-bubble').innerHTML = q.text;
+  $('#q-bubble').classList.remove('anim-in');
+  void $('#q-bubble').offsetWidth;
+  $('#q-bubble').classList.add('anim-in');
+
+  const body = $('#q-body');
+  body.innerHTML = '';
+
+  if (q.type === 'single'){
+    const wrap = document.createElement('div');
+    wrap.className = 'opts anim-in';
+    q.options.forEach((opt, idx) => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (answers[q.id] === opt ? ' sel' : '');
+      b.type = 'button';
+      const parts = opt.match(/^(\S+)\s*(.*)/);
+      const emoji = parts ? parts[1] : '';
+      const rest = parts ? parts[2] : opt;
+      b.innerHTML = '<span class="em">' + emoji + '</span><span>' + rest + '</span><span class="dot"></span>';
+      b.addEventListener('click', () => {
+        answers[q.id] = opt; idxMap[q.id] = idx;
+        wrap.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));
+        b.classList.add('sel');
+        $('#q-err').style.display = 'none';
+        haptic('sel'); save();
+      });
+      wrap.appendChild(b);
+    });
+    body.appendChild(wrap);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.className = 'field anim-in';
+    ta.placeholder = q.placeholder || 'Напиши пару слов…';
+    ta.value = answers[q.id] || '';
+    ta.addEventListener('input', () => { answers[q.id] = ta.value; save(); });
+    body.appendChild(ta);
+  }
+  lastLevel = L.n;
+}
+
+function nextQ(){
+  const q = QUESTIONS[cur];
+  const v = (answers[q.id]||'').trim();
+  if (v.length < 2){ $('#q-err').style.display='block'; haptic('ok'); return; }
+  if (!q._scored){ q._scored = true; xp += 10; }
+  if (cur < QUESTIONS.length - 1){
+    const prevL = lastLevel;
+    cur++;
+    const newL = levelOf(cur).n;
+    haptic('ok'); save(); renderQ();
+    if (newL > prevL) levelUp(newL);
+  } else {
+    finishQuiz();
+  }
+}
+function prevQ(){ if(cur>0){ cur--; haptic('ok'); save(); renderQ(); } }
+
+function levelUp(n){
+  const t = $('#toast');
+  const label = (LEVELS.find(l=>l.n===n)||{}).label || '';
+  t.textContent = '🎉 Уровень ' + n + ' — ' + label;
+  t.classList.add('show'); haptic('win');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ── Finish ── */
+function computeScores(){
+  const sc = [0,0,0,0,0,0];
+  QUESTIONS.forEach(q => { if(q.holland && idxMap[q.id]!=null) sc[idxMap[q.id]]++; });
+  return sc;
+}
+function finishQuiz(){
+  show('loading'); hideMain(); setBack(null); haptic('win');
+  setTimeout(() => { renderReveal(); show('reveal'); }, 1400);
+}
+
+function renderReveal(){
+  const sc = computeScores();
+  const order = sc.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
+  const top = order.filter(o=>o.v>0);
+  const t0 = (top[0]||{i:0}).i;
+  const t1 = (top[1]||{i:1}).i;
+  const T = TYPES[t0];
+
+  // Hero
+  $('#rv-greeting').textContent = (userName ? userName + ', ' : '') + 'твой тип';
+  $('#rv-type').textContent = top.length > 1 ? T.title + '-' + TYPES[t1].title : T.title;
+  $('#rv-desc').textContent = T.desc;
+
+  // Traits
+  const tr = $('#rv-traits'); tr.innerHTML = '';
+  [t0, t1].forEach((i, idx) => {
+    const c = document.createElement('div');
+    c.className = 'rv-trait';
+    c.style.animationDelay = (idx * 0.08) + 's';
+    c.innerHTML = '<span class="em">' + TYPES[i].em + '</span><span class="nm">' + TYPES[i].nick + '</span>';
+    tr.appendChild(c);
+  });
+  const lk = document.createElement('div');
+  lk.className = 'rv-trait locked';
+  lk.innerHTML = '<span class="em">🔒</span><span class="nm">в чате</span>';
+  tr.appendChild(lk);
+
+  // Interest bars
+  const bars = $('#rv-bars'); bars.innerHTML = '';
+  const maxV = Math.max(1, sc[t0]);
+  order.slice(0,3).forEach(o => {
+    const pct = Math.max(18, Math.round((o.v / maxV) * 100));
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML =
+      '<div class="bar-meta"><span class="bar-title">' + TYPES[o.i].em + ' ' + TYPES[o.i].title + '</span>' +
+      '<span class="bar-pct">' + pct + '%</span></div>' +
+      '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div>';
+    bars.appendChild(row);
+  });
+
+  // Steps
+  const steps = $('#rv-steps'); steps.innerHTML = '';
+  const stepsArr = STEPS_BY_TYPE[t0];
+  stepsArr.slice(0,5).forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'step-row';
+    row.innerHTML = '<div class="step-num">' + (i+1) + '</div><div class="step-text">' + s + '</div>';
+    steps.appendChild(row);
+  });
+
+  // Nova message
+  $('#rv-name-msg').textContent = userName || 'друг';
+
+  // Parent
+  const parentDesc = {
+    0: 'склонность к техническому и практическому труду',
+    1: 'аналитический склад ума и тягу к исследованиям',
+    2: 'творческое мышление и художественный потенциал',
+    3: 'эмпатию и навыки работы с людьми',
+    4: 'лидерские качества и предпринимательское мышление',
+    5: 'системное мышление и склонность к порядку',
+  };
+  $('#rv-parent-text').textContent =
+    'Ваш ребёнок показал ' + (parentDesc[t0]||'ярко выраженные интересы') +
+    '. Это ценные качества для ' + T.title.toLowerCase() + 'а. ' +
+    'Поддержите его интерес — без давления. Полный отчёт придёт в чат Telegram.';
+
+  setMain('Получить план в Telegram →', sendToBot);
+  setBack(null);
+}
+
+/* ── Send to bot ── */
+$('#btn-finish').addEventListener('click', sendToBot);
+let sent = false;
+function sendToBot(){
+  if (sent) return; sent = true;
+  haptic('win');
+  const payload = JSON.stringify({ name:userName, age:userAge, answers, xp });
+  clearSave();
+  try {
+    if (tg && tg.sendData){ tg.sendData(payload); tg.close && tg.close(); return; }
+  } catch(e){}
+  const btn = $('#btn-finish');
+  btn.textContent = '✓ Готово — жди сообщения от Новы!';
+  btn.disabled = true;
+}
+
+/* ── Boot ── */
+(function boot(){
+  if (restore()){
+    if (cur > 0 || Object.keys(answers).length){
+      QUESTIONS.forEach(q => { if(answers[q.id]) q._scored = true; });
+      show('quiz'); renderQ(); return;
+    }
+    $('#in-name').value = userName || '';
+    $('#in-age').value = userAge || '';
+  }
+  showWelcome();
+})();
+</script>
+</body>
+</html>
