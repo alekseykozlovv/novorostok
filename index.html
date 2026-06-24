@@ -891,15 +891,24 @@ function startQuiz(){
   }
 
   userName = n; userAge = a;
+  // Выбираем набор вопросов по роли
+  QUESTIONS = (userRole === 'parent') ? QUESTIONS_PARENT : QUESTIONS_TEEN;
+  // Сбрасываем _scored при новом прохождении
+  QUESTIONS.forEach(q => { delete q._scored; });
   if (!Object.keys(answers).length){ cur = 0; xp = 0; }
   haptic('ok'); save();
   show('quiz'); renderQ();
 }
 
 /* ══════════════════════════════════════
-   QUESTIONS
+   QUESTIONS — два набора: teen / parent
+   Структура:
+   - QUESTIONS_TEEN  — для подростка (на "ты")
+   - QUESTIONS_PARENT — для родителя (о ребёнке)
+   Активный набор выбирается в startQuiz()
 ══════════════════════════════════════ */
-const QUESTIONS = [
+
+const QUESTIONS_TEEN = [
   /* --- Интересы (RIASEC) --- */
   { id:'r1', section:'Интересы', type:'single', holland:true,
     text:'Что тебе ближе всего в свободное время?',
@@ -916,9 +925,10 @@ const QUESTIONS = [
   { id:'r5', section:'Интересы', type:'single', holland:true,
     text:'Что тебя раздражает больше всего?',
     options:['😤 Сидеть без дела, нет практики','😴 Не понимать суть, поверхностность','🥱 Скучные шаблоны без творчества','😞 Работать в одиночку без общения','😑 Выполнять чужие решения','😵 Хаос и отсутствие системы'] },
-  { id:'r6', section:'Интересы', type:'text',
+  { id:'r6', section:'Интересы', type:'text', validate:true,
     text:'Если бы деньги и мнение других не имели значения — чем бы ты занимался каждый день?',
-    placeholder:'Первое, что приходит в голову — напиши честно 😊' },
+    placeholder:'Первое, что приходит в голову — напиши честно 😊',
+    validateHint:'Расскажи чуть подробнее — хотя бы одно занятие или увлечение 😊' },
   /* --- Сильные стороны --- */
   { id:'s1', section:'Сильные стороны', type:'single',
     text:'Как тебе комфортнее работать?',
@@ -932,9 +942,10 @@ const QUESTIONS = [
   { id:'s4', section:'Сильные стороны', type:'single',
     text:'Как реагируешь, когда что-то идёт не по плану?',
     options:['🛠 Ищу новое решение — это интересно','📞 Прошу помощи у других','😤 Расстраиваюсь, но продолжаю','⏸ Делаю паузу и обдумываю'] },
-  { id:'s5', section:'Сильные стороны', type:'text',
+  { id:'s5', section:'Сильные стороны', type:'text', validate:true,
     text:'Напиши 2–3 вещи, которые у тебя точно получаются хорошо',
-    placeholder:'Например: быстро учусь, хорошо рисую, умею объяснять…' },
+    placeholder:'Например: быстро учусь, хорошо рисую, умею объяснять…',
+    validateHint:'Напиши хотя бы одно умение или качество — любое, без самокритики 💪' },
   /* --- Будущее --- */
   { id:'m1', section:'Будущее', type:'single',
     text:'Что тебя сейчас беспокоит больше всего?',
@@ -942,13 +953,75 @@ const QUESTIONS = [
   { id:'m2', section:'Будущее', type:'single',
     text:'Что тебе важнее в будущей профессии?',
     options:['💰 Хороший доход и стабильность','❤️ Помогать людям и делать мир лучше','🎯 Делать то, что искренне нравится','🌟 Быть известным и влиятельным','🔓 Свобода и независимость'] },
-  { id:'m3', section:'Будущее', type:'text',
+  { id:'m3', section:'Будущее', type:'text', validate:true,
     text:'Чем ты занимаешься в интернете чаще всего?',
-    placeholder:'YouTube, игры, чтение — всё подходит, напиши честно 🙂' },
-  { id:'m4', section:'Будущее', type:'text',
+    placeholder:'YouTube, игры, чтение — всё подходит, напиши честно 🙂',
+    validateHint:'Напиши хотя бы один сайт, приложение или тип контента 🙂' },
+  { id:'m4', section:'Будущее', type:'text', validate:true,
     text:'Через 5 лет — каким ты хочешь видеть себя?',
-    placeholder:'Описывай мечту, не «правильный» ответ 🌟' },
+    placeholder:'Описывай мечту, не «правильный» ответ 🌟',
+    validateHint:'Напиши хотя бы пару слов о своей мечте — любой ответ подходит 🌟' },
 ];
+
+/* Вопросы для родителя — переформулированы от 3-го лица о ребёнке */
+const QUESTIONS_PARENT = [
+  /* --- Интересы ребёнка --- */
+  { id:'r1', section:'Интересы', type:'single', holland:true,
+    text:'Что ваш ребёнок чаще всего делает в свободное время?',
+    options:['🔧 Что-то мастерит, чинит, собирает','🔬 Изучает как всё устроено, задаёт вопросы','🎨 Рисует, пишет, придумывает','🤝 Общается с людьми, помогает другим','🚀 Организует, берёт на себя роль лидера','📋 Составляет списки, систематизирует, работает чётко'] },
+  { id:'r2', section:'Интересы', type:'multi', holland:true, maxSel:2,
+    text:'Представьте: ребёнок нашёл сломанный гаджет. Что он скорее всего сделает? <em>(можно выбрать до 2)</em>',
+    options:['🛠 Разберёт и попробует починить','🔍 Поищет как устроен','✏️ Придумает как улучшить','💬 Спросит у кого-то опытного','📦 Организует ремонт','🗂 Запишет и найдёт инструкцию'] },
+  { id:'r3', section:'Интересы', type:'multi', holland:true, maxSel:2,
+    text:'Какие предметы ребёнку даются легче и нравятся больше? <em>(можно выбрать до 2)</em>',
+    options:['⚙️ Технология, физика, информатика','🧪 Биология, химия, математика','🎭 Литература, ИЗО, музыка','🌍 История, обществознание','💼 Экономика, предпринимательство','📊 Математика, статистика, таблицы'] },
+  { id:'r4', section:'Интересы', type:'single', holland:true,
+    text:'Когда ваш ребёнок явно оживает и чувствует себя в своей тарелке?',
+    options:['🔨 Когда что-то создаёт руками','💡 Когда решает сложную задачу','🎬 Когда творит — рисует, пишет, снимает','❤️ Когда помогает и видит благодарность','🏆 Когда ведёт других к цели','✅ Когда всё чётко и по плану'] },
+  { id:'r5', section:'Интересы', type:'single', holland:true,
+    text:'Что ребёнка раздражает или расстраивает больше всего?',
+    options:['😤 Когда нет практики, только теория','😴 Когда не понимает смысл и глубину','🥱 Когда задача скучная и шаблонная','😞 Когда приходится работать в одиночку','😑 Когда нужно выполнять чужие решения','😵 Когда вокруг хаос и нет порядка'] },
+  { id:'r6', section:'Интересы', type:'text', validate:true,
+    text:'Чем ваш ребёнок увлекается по-настоящему — помимо учёбы?',
+    placeholder:'Хобби, занятия, интересы — напишите что знаете 😊',
+    validateHint:'Напишите хотя бы одно увлечение или занятие ребёнка 😊' },
+  /* --- Сильные стороны ребёнка --- */
+  { id:'s1', section:'Сильные стороны', type:'single',
+    text:'Как ребёнку комфортнее работать или учиться?',
+    options:['🎧 Один — в тишине лучше концентрируется','👥 В команде — оживает в общении','🔄 По-разному, зависит от задачи'] },
+  { id:'s2', section:'Сильные стороны', type:'single',
+    text:'Когда ребёнок берётся за что-то новое и сложное — как обычно?',
+    options:['🔥 Загорается, любит новые вызовы','🤔 Сначала изучает, потом действует','😬 Немного тревожится, но справляется','😰 Предпочитает знакомые и привычные задачи'] },
+  { id:'s3', section:'Сильные стороны', type:'single',
+    text:'В чём ребёнок особенно силён — по вашему наблюдению?',
+    options:['💬 Объясняет и рассказывает — его слушают','🧩 Находит неожиданные решения','📅 Умеет организовать и спланировать','🌱 Поддерживает и слушает других','⚡ Берёт инициативу, предлагает идеи','🔎 Замечает детали, видит ошибки'] },
+  { id:'s4', section:'Сильные стороны', type:'single',
+    text:'Как ребёнок обычно реагирует, когда что-то идёт не по плану?',
+    options:['🛠 Ищет другое решение — воспринимает как задачу','📞 Просит помощи у взрослых или друзей','😤 Расстраивается, но продолжает','⏸ Делает паузу, обдумывает'] },
+  { id:'s5', section:'Сильные стороны', type:'text', validate:true,
+    text:'Напишите 2–3 качества или умения, которые вы точно замечаете в ребёнке',
+    placeholder:'Например: хорошо объясняет, упорный, умеет рисовать, находит общий язык с людьми…',
+    validateHint:'Напишите хотя бы одно качество ребёнка — любое, которое вы замечаете 💪' },
+  /* --- Будущее ребёнка --- */
+  { id:'m1', section:'Будущее', type:'single',
+    text:'Что сейчас беспокоит вашего ребёнка больше всего (по вашим наблюдениям)?',
+    options:['🧭 Не знает кем хочет стать','😰 Чувствует давление с выбором профессии','📚 Трудно совмещать учёбу и увлечения','💪 Не уверен в себе и своих силах','🗺 В целом всё хорошо, хочет определиться'] },
+  { id:'m2', section:'Будущее', type:'single',
+    text:'Что, по-вашему, для ребёнка важнее всего в будущей профессии?',
+    options:['💰 Хороший доход и стабильность','❤️ Помогать людям и делать мир лучше','🎯 Заниматься тем, что по-настоящему нравится','🌟 Быть известным и признанным','🔓 Свобода и независимость'] },
+  { id:'m3', section:'Будущее', type:'text', validate:true,
+    text:'Что ребёнок смотрит или делает в интернете больше всего?',
+    placeholder:'YouTube, игры, чтение, соцсети — напишите что знаете 🙂',
+    validateHint:'Напишите хотя бы одно: сайт, приложение или тип контента 🙂' },
+  { id:'m4', section:'Будущее', type:'text', validate:true,
+    text:'Каким вы хотите видеть своего ребёнка через 5 лет?',
+    placeholder:'Не «правильный» ответ — просто ваша честная мечта за него 🌟',
+    validateHint:'Напишите хотя бы пару слов о том, каким вы видите ребёнка 🌟' },
+];
+
+/* Активный набор вопросов — выбирается по роли в startQuiz() */
+let QUESTIONS = QUESTIONS_TEEN;
+
 
 const LEVELS = [
   { n:1, label:'Интересы',        start:0  },
@@ -997,6 +1070,10 @@ function renderQ(){
   $('#btn-next').disabled = false;
 
   // Nova bubble
+  // Сброс состояния валидации при смене вопроса
+  validateState = 'idle';
+  clearTimeout(validateTimer);
+
   $('#q-bubble').innerHTML = q.text;
   $('#q-bubble').classList.remove('anim-in');
   void $('#q-bubble').offsetWidth;
@@ -1093,15 +1170,145 @@ function renderMulti(q, body){
   body.appendChild(wrap);
 }
 
+/* ══════════════════════════════════════
+   ВАЛИДАЦИЯ ТЕКСТОВЫХ ОТВЕТОВ
+   Проверяет через Anthropic API что текст
+   содержательный, а не случайный набор символов.
+   Кешируем результат — не валидируем повторно
+   одинаковый текст.
+══════════════════════════════════════ */
+
+// Кеш валидации: { 'текст' -> true/false }
+const validateCache = {};
+
+async function validateTextAnswer(text, questionContext) {
+  const trimmed = text.trim();
+
+  // Базовые проверки без API — быстро и бесплатно
+  if (trimmed.length < 3) return false;
+
+  // Если это просто повторяющиеся символы: "аааааа", "......", "123123"
+  const noiseRe = /^(.)\1{4,}$|^[^а-яёa-z\d]{4,}$/i;
+  if (noiseRe.test(trimmed)) return false;
+
+  // Если слишком мало уникальных символов (например "ывыв")
+  const uniqueChars = new Set(trimmed.toLowerCase().replace(/\s/g, '')).size;
+  if (trimmed.replace(/\s/g, '').length > 5 && uniqueChars < 3) return false;
+
+  // Если только цифры и спецсимволы без букв
+  if (!/[а-яёa-z]/i.test(trimmed)) return false;
+
+  // Если уже проверяли этот текст — возвращаем кеш
+  const cacheKey = trimmed.toLowerCase().slice(0, 60);
+  if (validateCache[cacheKey] !== undefined) return validateCache[cacheKey];
+
+  // API-проверка только для пограничных случаев (короткий текст 3-15 символов)
+  // Длинный осмысленный ответ (>15 символов с буквами) — пропускаем
+  if (trimmed.length > 15) {
+    validateCache[cacheKey] = true;
+    return true;
+  }
+
+  // Для коротких — API-проверка
+  try {
+    const result = await checkRelevanceViaAPI(trimmed, questionContext);
+    validateCache[cacheKey] = result;
+    return result;
+  } catch (e) {
+    console.warn('Validate API error (fallback to true):', e);
+    // При ошибке API — не блокируем пользователя
+    return true;
+  }
+}
+
+async function checkRelevanceViaAPI(text, context) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 50,
+      system: 'Ты проверяешь, является ли ответ подростка содержательным. Отвечай ТОЛЬКО словом YES или NO.',
+      messages: [{
+        role: 'user',
+        content: `Вопрос: "${context}"\nОтвет пользователя: "${text}"\n\nЭто осмысленный ответ на вопрос (хотя бы минимально связанный с темой)? YES или NO.`
+      }]
+    })
+  });
+  const data = await response.json();
+  const answer = (data?.content?.[0]?.text || '').trim().toUpperCase();
+  return answer.startsWith('YES');
+}
+
+/* ══════════════════════════════════════
+   СОСТОЯНИЕ ВАЛИДАЦИИ для renderText
+══════════════════════════════════════ */
+// Хранит статус валидации текущего textarea: 'idle' | 'checking' | 'ok' | 'fail'
+let validateState = 'idle';
+let validateTimer = null;
+
 function renderText(q, body){
+  validateState = 'idle';
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:relative; width:100%;';
+
   const ta = document.createElement('textarea');
   ta.className = 'field anim-in';
   ta.placeholder = q.placeholder || 'Напиши пару слов…';
   ta.value = answers[q.id] || '';
   ta.rows = 4;
-  ta.addEventListener('input', () => { answers[q.id] = ta.value; save(); });
-  body.appendChild(ta);
+
+  // Индикатор статуса валидации
+  const indicator = document.createElement('div');
+  indicator.className = 'validate-indicator';
+  indicator.style.cssText = 'display:none; font-size:12px; padding:6px 10px; border-radius:9px; margin-top:6px; transition:all .2s;';
+
+  ta.addEventListener('input', () => {
+    answers[q.id] = ta.value;
+    save();
+    validateState = 'idle';
+    indicator.style.display = 'none';
+
+    // Debounce: запускаем проверку через 1.2 сек после последнего ввода
+    if (!q.validate) return;
+    clearTimeout(validateTimer);
+    validateTimer = setTimeout(async () => {
+      const val = ta.value.trim();
+      if (val.length < 3) return;
+      validateState = 'checking';
+      indicator.style.display = 'block';
+      indicator.style.background = 'rgba(122,155,191,0.1)';
+      indicator.style.color = 'var(--ink2)';
+      indicator.textContent = '✏️ Нова читает…';
+
+      const ok = await validateTextAnswer(val, q.text.replace(/<[^>]+>/g,''));
+      if (ta.value.trim() !== val) return; // текст изменился пока проверяли
+
+      if (ok) {
+        validateState = 'ok';
+        indicator.style.background = 'rgba(0,255,179,0.08)';
+        indicator.style.color = '#00cc8e';
+        indicator.style.border = '1px solid rgba(0,255,179,0.2)';
+        indicator.textContent = '✓ Отлично, идём дальше!';
+        // Скрываем через 2 сек
+        setTimeout(() => { indicator.style.display = 'none'; }, 2000);
+      } else {
+        validateState = 'fail';
+        indicator.style.background = 'rgba(255,95,122,0.08)';
+        indicator.style.color = 'var(--coral)';
+        indicator.style.border = '1px solid rgba(255,95,122,0.3)';
+        indicator.textContent = '💬 ' + (q.validateHint || 'Расскажи чуть подробнее — любой ответ подходит 😊');
+      }
+    }, 1200);
+  });
+
+  wrapper.appendChild(ta);
+  wrapper.appendChild(indicator);
+  body.appendChild(wrapper);
 }
+
+
 
 /* ══════════════════════════════════════
    QUIZ NAVIGATION — FIX: только DOM кнопки
@@ -1123,6 +1330,21 @@ function nextQ(){
     $('#q-err').style.display = 'block';
     haptic('ok');
     return;
+  }
+
+  // Если валидация текста запущена или провалена — блокируем
+  if (q.type === 'text' && q.validate) {
+    if (validateState === 'checking') {
+      showToast('⏳ Подожди секунду…');
+      return;
+    }
+    if (validateState === 'fail') {
+      const hint = q.validateHint || 'Расскажи чуть подробнее — любой ответ подходит 😊';
+      $('#q-err').textContent = '💬 ' + hint;
+      $('#q-err').style.display = 'block';
+      haptic('ok');
+      return;
+    }
   }
 
   if (!q._scored){ q._scored = true; xp += 10; }
