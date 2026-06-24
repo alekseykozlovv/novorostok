@@ -1560,13 +1560,33 @@ function renderReveal(){
   const t0 = (top[0]||{i:0}).i;
   const t1 = top.length > 1 ? top[1].i : null;
   const T = TYPES[t0];
+  const isParent = (userRole === 'parent');
+  const childName = userName || 'ваш ребёнок';
+  const childNameCap = childName.charAt(0).toUpperCase() + childName.slice(1);
 
-  // Hero
-  $('#rv-greeting').textContent = (userName ? userName + ', ' : '') + 'твой тип';
+  // ── Hero ────────────────────────────────────────────────
+  $('#rv-unlocked').textContent = isParent ? '★ ПРОФИЛЬ РЕБЁНКА ГОТОВ' : '★ ПРОФИЛЬ РАЗБЛОКИРОВАН';
+
+  if (isParent) {
+    $('#rv-greeting').textContent = childNameCap + ', тип вашего ребёнка';
+  } else {
+    $('#rv-greeting').textContent = (userName ? userName + ', ' : '') + 'твой тип';
+  }
+
   $('#rv-type').textContent = t1 !== null ? T.title + '-' + TYPES[t1].title : T.title;
-  $('#rv-desc').textContent = T.desc;
 
-  // Traits
+  // Описание — для родителя от 3-го лица
+  const descParent = {
+    0: 'Ваш ребёнок — человек дела. Он создаёт, строит и видит результат своими руками.',
+    1: 'Ваш ребёнок докапывается до сути вещей. Ему важно понять, как всё устроено.',
+    2: 'Ваш ребёнок мыслит образами. Он создаёт то, чего ещё не было в мире.',
+    3: 'Для вашего ребёнка важны люди. Он умеет слышать, поддерживать и вести за собой.',
+    4: 'Ваш ребёнок — прирождённый лидер. Ему нужны цели, команда и движение вперёд.',
+    5: 'Ваш ребёнок любит порядок и точность. Он создаёт системы, которые работают.',
+  };
+  $('#rv-desc').textContent = isParent ? (descParent[t0] || T.desc) : T.desc;
+
+  // ── Traits ──────────────────────────────────────────────
   const tr = $('#rv-traits'); tr.innerHTML = '';
   const traitIdxs = t1 !== null ? [t0, t1] : [t0];
   traitIdxs.forEach((i, idx) => {
@@ -1581,11 +1601,14 @@ function renderReveal(){
   lk.innerHTML = '<span class="em">🔒</span><span class="nm">в чате</span>';
   tr.appendChild(lk);
 
-  // Bars — FIX: показываем только типы с ненулевым счётом
+  // ── Bars ────────────────────────────────────────────────
+  const barsLabel = document.querySelector('#rv-bars').previousElementSibling;
+  if (barsLabel) barsLabel.textContent = isParent ? '📊 Карта интересов ребёнка' : '📊 Карта интересов';
+
   const bars = $('#rv-bars'); bars.innerHTML = '';
   const maxV = Math.max(1, sc[t0]);
   const topWithScore = order.filter(o=>o.v>0).slice(0,3);
-  if (topWithScore.length === 0) { topWithScore.push(order[0]); }
+  if (topWithScore.length === 0) topWithScore.push(order[0]);
   topWithScore.forEach(o => {
     const pct = Math.max(15, Math.round((o.v / maxV) * 100));
     const row = document.createElement('div');
@@ -1597,25 +1620,34 @@ function renderReveal(){
     bars.appendChild(row);
   });
 
-  // Steps
+  // ── Steps ───────────────────────────────────────────────
+  // Метка секции
+  const stepsSection = $('#rv-steps').closest('.rv-section');
+  const stepsLabel = stepsSection ? stepsSection.querySelector('.rv-section-label') : null;
+  if (stepsLabel) stepsLabel.textContent = isParent ? '🗺 Первые шаги для ребёнка' : '🗺 Первые шаги';
+
   const steps = $('#rv-steps'); steps.innerHTML = '';
   STEPS_BY_TYPE[t0].slice(0,5).forEach((s, i) => {
     const row = document.createElement('div');
     row.className = 'step-row';
-    row.innerHTML = '<div class="step-num">' + (i+1) + '</div><div class="step-text">' + s + '</div>';
+    // Для родителя — шаги переформулированы от 3-го лица
+    const stepText = isParent ? s.replace(/^(Выбрать|Прочитать|Попробовать|Записать|Поговорить|Найти|Взять|Придумать|Потренироваться|Помочь|Побыть|Упорядочить|Пройти|Создать|Начать|Посмотреть|Показать)/,
+      m => 'Предложите ребёнку: ' + m.toLowerCase()) : s;
+    row.innerHTML = '<div class="step-num">' + (i+1) + '</div><div class="step-text">' + stepText + '</div>';
     steps.appendChild(row);
   });
 
-  // Professions
+  // ── Professions ─────────────────────────────────────────
+  const profsSection = $('#rv-professions').closest('.rv-section');
+  const profsLabel = profsSection ? profsSection.querySelector('.rv-section-label') : null;
+  if (profsLabel) profsLabel.textContent = isParent ? '💼 Кем может стать ваш ребёнок' : '💼 Кем ты можешь стать';
+
   const profsEl = $('#rv-professions'); profsEl.innerHTML = '';
   const profsList = PROFESSIONS_BY_TYPE[t0] || [];
-  // Добавляем профессии основного типа + 1-2 от второго типа если есть
-  let profsToShow = profsList.slice(0, 3);
+  let profsToShow = t1 !== null ? profsList.slice(0,3) : profsList.slice(0,4);
   if (t1 !== null) {
     const p2 = PROFESSIONS_BY_TYPE[t1] || [];
     if (p2[0]) profsToShow.push(p2[0]);
-  } else {
-    profsToShow = profsList.slice(0, 4);
   }
   profsToShow.forEach(p => {
     const card = document.createElement('div');
@@ -1627,22 +1659,69 @@ function renderReveal(){
     profsEl.appendChild(card);
   });
 
-  // Nova message
-  $('#rv-name-msg').textContent = userName || 'друг';
+  // ── Nova message ────────────────────────────────────────
+  const novaBubble = document.querySelector('.rv-nova-bubble');
+  if (isParent) {
+    novaBubble.innerHTML =
+      'Это только начало! Я подготовила профиль <strong>' + childNameCap + '</strong>. ' +
+      'Полный разбор с планом развития придёт вам в чат Telegram 🚀';
+  } else {
+    novaBubble.innerHTML =
+      'Это только начало, <strong id="rv-name-msg">' + (userName || 'друг') + '</strong>! ' +
+      'Полный план и разбор я пришлю тебе в чат Telegram. Там мы продолжим 🚀';
+  }
 
-  // Parent section
-  const parentDesc = {
-    0:'склонность к техническому и практическому труду',
-    1:'аналитический склад ума и тягу к исследованиям',
-    2:'творческое мышление и художественный потенциал',
-    3:'эмпатию и навыки работы с людьми',
-    4:'лидерские качества и предпринимательское мышление',
-    5:'системное мышление и склонность к порядку',
-  };
-  $('#rv-parent-text').textContent =
-    'Ваш ребёнок показал ' + (parentDesc[t0]||'ярко выраженные интересы') +
-    '. Это ценные качества для ' + T.title.toLowerCase() + 'а. ' +
-    'Поддержите его интерес — без давления. Полный отчёт придёт в чат Telegram.';
+  // ── Parent section ──────────────────────────────────────
+  const parentSection = document.querySelector('.rv-parent');
+  const parentTitle = document.querySelector('.rv-parent-title');
+
+  if (isParent) {
+    // Для родителя — этот блок становится главным резюме
+    if (parentTitle) parentTitle.innerHTML = '📋 Резюме для вас';
+    const parentDesc = {
+      0:'склонность к техническому и практическому труду',
+      1:'аналитический склад ума и тягу к исследованиям',
+      2:'творческое мышление и художественный потенциал',
+      3:'эмпатию и навыки работы с людьми',
+      4:'лидерские качества и предпринимательское мышление',
+      5:'системное мышление и склонность к порядку',
+    };
+    $('#rv-parent-text').textContent =
+      childNameCap + ' показал' + (childName.endsWith('а') ? 'а' : '') + ' ' +
+      (parentDesc[t0] || 'ярко выраженные интересы') + '. ' +
+      'Это ценные качества. Поддержите интерес ребёнка — без давления. ' +
+      'Полный отчёт с рекомендациями придёт в чат Telegram.';
+  } else {
+    if (parentTitle) parentTitle.innerHTML = '👨‍👩‍👧 Для родителей';
+    const parentDesc = {
+      0:'склонность к техническому и практическому труду',
+      1:'аналитический склад ума и тягу к исследованиям',
+      2:'творческое мышление и художественный потенциал',
+      3:'эмпатию и навыки работы с людьми',
+      4:'лидерские качества и предпринимательское мышление',
+      5:'системное мышление и склонность к порядку',
+    };
+    $('#rv-parent-text').textContent =
+      'Ваш ребёнок показал ' + (parentDesc[t0] || 'ярко выраженные интересы') +
+      '. Это ценные качества для ' + T.title.toLowerCase() + 'а. ' +
+      'Поддержите его интерес — без давления. Полный отчёт придёт в чат Telegram.';
+  }
+
+  // ── Loading screen texts ─────────────────────────────────
+  if (isParent) {
+    const loadTitle = document.querySelector('.loading-center div[style*="font-size:19px"]');
+    const loadSub = document.querySelector('.loading-center div[style*="color:var(--ink2)"]');
+    if (loadTitle) loadTitle.innerHTML = 'Нова составляет<br>профиль ребёнка';
+    if (loadSub) loadSub.textContent = 'Анализирую ответы и подбираю направления для вашего ребёнка…';
+  }
+
+  // ── CTA button ───────────────────────────────────────────
+  const btnFinish = $('#btn-finish');
+  btnFinish.textContent = isParent ? 'Получить отчёт в Telegram →' : 'Получить план в Telegram →';
+  const ctaNote = document.querySelector('.rv-cta-wrap .privacy-note');
+  if (ctaNote) ctaNote.textContent = isParent
+    ? 'Нова пришлёт полный отчёт о ребёнке прямо в чат'
+    : 'Нова пришлёт персональный разбор прямо в чат';
 }
 
 /* ══════════════════════════════════════
