@@ -38,7 +38,6 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY)
 SHEETS_WEBHOOK = "https://script.google.com/macros/s/AKfycbxutqYubF1d5bJ10awlMNSrQzkqQHa97uP2RXTduj1-ptTUHiLyLFKPovxu8Z7PdwoMRQ/exec"
 
 def log_event(user_id: int, username: str, event: str, details: str = ""):
-    """Отправляет событие в Google Sheets. Не блокирует бота при ошибке."""
     try:
         payload = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -116,6 +115,14 @@ def safe_parse_json(text: str) -> dict:
         "parent_summary": "Анализ временно недоступен. Попробуйте снова."
     }
 
+# ─── ЭКРАНИРОВАНИЕ HTML ────────────────────────────────────
+def esc(text: str) -> str:
+    """Экранирует спецсимволы HTML для безопасной вставки в parse_mode=HTML"""
+    return (str(text)
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;"))
+
 # ─── ПРОМПТ ────────────────────────────────────────────────
 NOVA_SYSTEM_PROMPT = """
 Ты — Нова, AI-наставник подростков проекта НовоРосток.
@@ -126,9 +133,10 @@ NOVA_SYSTEM_PROMPT = """
   НЕЛЬЗЯ: "Алексей любит", "он интересуется", "у него есть"
   НУЖНО: "ты любишь", "ты интересуешься", "у тебя есть"
 - Каждое предложение заканчивается точкой.
-- В riasec_explanation: расшифруй каждую букву кода применительно к подростку на "ты".
-  Пример для кода IRC: "Ты исследуешь мир через вопросы и логику. Тебе важно понять как всё устроено. Ты умеешь находить творческие решения там где другие останавливаются."
-- В parent_summary: обращайся к родителю на "Вы". Опиши сильные стороны ребёнка и дай 2 конкретные рекомендации.
+- В поле riasec_explanation: РОВНО 3 отдельных предложения. Каждое предложение — отдельная строка. Разделяй их символом | (вертикальная черта). Пример: "Ты исследуешь мир через вопросы и логику.|Тебе важно понять как всё устроено.|Ты умеешь находить творческие решения там где другие останавливаются."
+- В поле parent_summary: обращайся к родителю на "Вы". Разделяй части символом | следующим образом: описание сильных сторон|Рекомендуем: 1) первое действие|2) второе действие
+- В поле nova_message: РОВНО 2 предложения. Разделяй символом |.
+- В поле steps: ровно 5 пунктов. Каждый пункт начинается с временного маркера: "На этой неделе:", "В этом месяце:", "Через 3 месяца:", "Через 6 месяцев:", "Через год:".
 
 МЕТОДОЛОГИЯ АНАЛИЗА:
 
@@ -152,22 +160,22 @@ C = Conventional — порядок, системы, чёткие правила
 {
   "profile_title": "Технарь-Исследователь",
   "riasec_code": "IRC",
-  "riasec_explanation": "Ты исследуешь мир через вопросы и логику. Тебе важно понять как всё устроено. Ты умеешь находить творческие решения там где другие останавливаются.",
+  "riasec_explanation": "Ты исследуешь мир через вопросы и логику.|Тебе важно понять как всё устроено.|Ты умеешь находить творческие решения там где другие останавливаются.",
   "soft_skills_top3": ["Аналитика", "Обучаемость", "Саморефлексия"],
   "directions": [
     {"icon": "💻", "name": "IT и разработка", "match": "Ты хорошо справляешься с задачами где нужно думать и создавать.", "match_pct": 87},
-    {"icon": "🔬", "name": "Наука и инженерия", "match": "Твоя любовь к вопросам почему отлично подходит для исследований.", "match_pct": 74},
+    {"icon": "🔬", "name": "Наука и инженерия", "match": "Твоя любовь к вопросу почему отлично подходит для исследований.", "match_pct": 74},
     {"icon": "🎨", "name": "Дизайн и творчество", "match": "Ты умеешь видеть нестандартные решения там где другие не замечают.", "match_pct": 61}
   ],
   "steps": [
-    "На этой неделе: конкретное действие для тебя.",
-    "В этом месяце: конкретный курс или ресурс.",
+    "На этой неделе: одно конкретное действие которое ты можешь сделать сегодня.",
+    "В этом месяце: конкретный курс или ресурс для старта.",
     "Через 3 месяца: мини-проект который ты можешь сделать.",
     "Через 6 месяцев: измеримая цель.",
     "Через год: результат который ты увидишь."
   ],
-  "nova_message": "Личное послание тебе 2-3 предложения на ты. Честно и тепло. Каждое предложение заканчивается точкой.",
-  "parent_summary": "Ваш ребёнок обладает [сильные стороны]. Рекомендуем: 1) конкретное действие. 2) конкретный ресурс или активность."
+  "nova_message": "Первое личное предложение на ты.|Второе предложение — тёплое и честное.",
+  "parent_summary": "Ваш ребёнок обладает сильными сторонами.|Рекомендуем: 1) конкретное действие для вас как родителя.|2) конкретный ресурс или активность."
 }
 """
 
@@ -188,93 +196,139 @@ def generate_report_sync(name: str, age: str, answers: dict) -> dict:
     raw = response.choices[0].message.content
     return safe_parse_json(raw)
 
-# ─── ФОРМАТИРОВАНИЕ ────────────────────────────────────────
+# ─── ФОРМАТИРОВАНИЕ — HTML (надёжнее MarkdownV2) ──────────
+
 def format_teen_report(report: dict, name: str) -> str:
-    d = report.get("directions", [])
+    """Отчёт для подростка. parse_mode=HTML"""
+    skills = report.get("soft_skills_top3", [])
+    directions = report.get("directions", [])
     steps = report.get("steps", [])
-    skills = report.get("soft_skills_top3", [])
-
-    msg = f"🌱 *{name} — твой профиль готов\!*\n\n"
-    msg += f"*Ты — {report.get('profile_title', '')}*\n"
-    msg += f"🔑 *Твой тип: {report.get('riasec_code', '')}*\n"
-    msg += f"{report.get('riasec_explanation', '')}\n\n"
-
-    if skills:
-        msg += f"💪 *Твои сильные стороны:* {', '.join(skills)}\n\n"
-
-    msg += "🎯 *Направления для тебя:*\n"
-    for item in d:
-        msg += f"{item.get('icon', '')} *{item.get('name', '')}* — {item.get('match_pct', '')}%\n"
-        msg += f"{item.get('match', '')}\n"
-
-    msg += "\n🗺 *Твой план:*\n"
-    for step in steps:
-        msg += f"• {step}\n"
-
-    nova_msg = report.get("nova_message", "")
-    if nova_msg:
-        msg += f"\n💬 {nova_msg}"
-
-    return msg
-
-def format_parent_report(report: dict, name: str) -> str:
-    d = report.get("directions", [])
-    skills = report.get("soft_skills_top3", [])
 
     # Заголовок
-    msg = f"👨‍👩‍👧 Отчёт для родителей — {name}\n"
-    msg += "─" * 30 + "\n\n"
+    lines = [
+        f"🌱 <b>{esc(name)} — твой профиль готов</b>",
+        "",
+        f"<b>Ты — {esc(report.get('profile_title', ''))}</b>",
+        f"🔑 Твой тип: <b>{esc(report.get('riasec_code', ''))}</b>",
+    ]
 
-    # Профиль
-    msg += f"📋 Профиль: {report.get('profile_title', '')}\n\n"
-
-    # Тип личности с расшифровкой
-    riasec_map = {"R": "Практик", "I": "Исследователь", "A": "Творец", "S": "Помощник", "E": "Лидер", "C": "Организатор"}
-    code = report.get("riasec_code", "")
-    decoded = ", ".join([f"{c} — {riasec_map.get(c, c)}" for c in code])
-    msg += f"🔑 Тип личности: {code}\n"
-    msg += f"({decoded})\n\n"
-
-    # Объяснение — разбиваем на предложения
+    # Описание личности — разбиваем по разделителю |
     explanation = report.get("riasec_explanation", "")
-    sentences = [s.strip() for s in explanation.replace(". ", ".\n").split("\n") if s.strip()]
-    msg += "\n".join(sentences) + "\n\n"
+    for sentence in explanation.split("|"):
+        s = sentence.strip()
+        if s:
+            lines.append(esc(s))
+    lines.append("")
 
     # Сильные стороны
     if skills:
-        msg += "💪 Сильные стороны:\n"
+        lines.append("💪 <b>Твои сильные стороны:</b>")
         for skill in skills:
-            msg += f"  • {skill}\n"
-        msg += "\n"
+            lines.append(f"• {esc(skill)}")
+        lines.append("")
 
     # Направления
-    msg += "🎯 Подходящие направления:\n"
-    for item in d[:2]:
-        msg += f"  • {item.get('name', '')} — {item.get('match_pct', '')}%\n"
-    msg += "\n"
+    if directions:
+        lines.append("🎯 <b>Направления для тебя:</b>")
+        for item in directions:
+            lines.append(
+                f"{esc(item.get('icon',''))} <b>{esc(item.get('name',''))}</b> — {esc(str(item.get('match_pct', 0)))}%"
+            )
+            match_text = item.get("match", "").strip()
+            if match_text:
+                lines.append(f"<i>{esc(match_text)}</i>")
+        lines.append("")
 
-    # Резюме для родителя — разбиваем на части
-    parent = report.get("parent_summary", "")
-    if parent:
-        msg += "👀 О вашем ребёнке:\n"
-        # Разбиваем по "Рекомендуем:" или "Рекомендации:"
-        if "Рекомендуем" in parent or "Рекомендации" in parent:
-            parts = parent.replace("Рекомендуем:", "\n\n✅ Рекомендуем:\n").replace("Рекомендации:", "\n\n✅ Рекомендации:\n")
-            # Разбиваем нумерованные пункты
-            parts = parts.replace(" 1)", "\n  1)").replace(" 2)", "\n  2)").replace(" 3)", "\n  3)")
-            msg += parts + "\n"
-        else:
-            # Разбиваем по точкам на предложения
-            sentences = [s.strip() for s in parent.replace(". ", ".\n").split("\n") if s.strip()]
-            msg += "\n".join(sentences) + "\n"
+    # План
+    if steps:
+        lines.append("🗺 <b>Твой план:</b>")
+        for step in steps:
+            lines.append(f"• {esc(step)}")
+        lines.append("")
 
-    # Финал — ссылка
-    msg += "\n" + "─" * 30 + "\n"
-    msg += "📌 Оставьте отзыв на сайте:\n"
-    msg += "novorostok.ru\n"
-    msg += "И получите расширенный отчёт первым 🎁"
+    # Личное послание Новы — разбиваем по |
+    nova_msg = report.get("nova_message", "")
+    if nova_msg:
+        parts = [s.strip() for s in nova_msg.split("|") if s.strip()]
+        if parts:
+            lines.append(f"💬 {esc(parts[0])}")
+            for part in parts[1:]:
+                lines.append(esc(part))
 
-    return msg
+    return "\n".join(lines)
+
+
+def format_parent_report(report: dict, name: str) -> str:
+    """Отчёт для родителей. parse_mode=HTML"""
+    skills = report.get("soft_skills_top3", [])
+    directions = report.get("directions", [])
+
+    riasec_map = {
+        "R": "Практик", "I": "Исследователь", "A": "Творец",
+        "S": "Помощник", "E": "Лидер", "C": "Организатор"
+    }
+    code = report.get("riasec_code", "")
+    decoded = ", ".join([f"{c} — {riasec_map.get(c, c)}" for c in code])
+
+    lines = [
+        f"👨‍👩‍👧 <b>Отчёт для родителей — {esc(name)}</b>",
+        "",
+        f"📋 <b>Профиль:</b> {esc(report.get('profile_title', ''))}",
+        "",
+        f"🔑 <b>Тип личности:</b> {esc(code)}",
+        f"<i>({esc(decoded)})</i>",
+        "",
+    ]
+
+    # Описание — разбиваем по |
+    explanation = report.get("riasec_explanation", "")
+    for sentence in explanation.split("|"):
+        s = sentence.strip()
+        if s:
+            lines.append(esc(s))
+    lines.append("")
+
+    # Сильные стороны
+    if skills:
+        lines.append("💪 <b>Сильные стороны:</b>")
+        for skill in skills:
+            lines.append(f"• {esc(skill)}")
+        lines.append("")
+
+    # Направления (топ-2)
+    if directions:
+        lines.append("🎯 <b>Подходящие направления:</b>")
+        for item in directions[:2]:
+            lines.append(
+                f"• {esc(item.get('name', ''))} — {esc(str(item.get('match_pct', '')))}%"
+            )
+        lines.append("")
+
+    # Резюме для родителя — разбиваем по |
+    parent_summary = report.get("parent_summary", "")
+    if parent_summary:
+        parts = [p.strip() for p in parent_summary.split("|") if p.strip()]
+        if parts:
+            lines.append("👀 <b>О вашем ребёнке:</b>")
+            lines.append(esc(parts[0]))
+            lines.append("")
+            if len(parts) > 1:
+                lines.append("✅ <b>Рекомендуем:</b>")
+                for part in parts[1:]:
+                    # Убираем дубль "Рекомендуем:" если GPT его вставил
+                    clean = re.sub(r'^Рекомендуем:\s*', '', part.strip())
+                    lines.append(esc(clean))
+            lines.append("")
+
+    # Финал
+    lines += [
+        "📌 Оставьте отзыв на сайте:",
+        "novorostok.ru",
+        "И получите расширенный отчёт первым 🎁",
+    ]
+
+    return "\n".join(lines)
+
 
 # ─── ПОЛУЧЕНИЕ ДАННЫХ ИЗ WEBAPP ────────────────────────────
 async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -290,7 +344,6 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         age = payload.get("age", "")
         answers = payload.get("answers", {})
 
-        # Считаем сколько вопросов answered
         answered_count = len([v for v in answers.values() if v])
         total_questions = len(answers)
 
@@ -299,7 +352,6 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         report = await asyncio.to_thread(generate_report_sync, name, age, answers)
         save_session(user_id, name, age, answers, report)
 
-        # ✅ СОБЫТИЕ: завершил интервью
         await asyncio.to_thread(
             log_event, user_id, username,
             "completed",
@@ -307,25 +359,24 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
         teen_msg = format_teen_report(report, name)
-        try:
-            await update.message.reply_text(teen_msg, parse_mode="MarkdownV2")
-        except Exception as fmt_err:
-            print(f"⚠️ Ошибка форматирования, отправляю без markdown: {fmt_err}")
-            clean_msg = re.sub(r'[*_`\[\]()~>#+=|{}.!\\]', '', teen_msg)
-            await update.message.reply_text(clean_msg)
+        await update.message.reply_text(teen_msg, parse_mode="HTML")
 
-        await update.message.reply_text("💬 Это базовый профиль — бесплатно и навсегда твой.\n\n🎁 Хочешь расширенный отчёт с планом на 5 лет, картой навыков и разделом для родителей?\nОставь отзыв на сайте 👉 novorostok.ru — и я пришлю его тебе первым!\n\n📩 Версия для родителей: /report")
+        await update.message.reply_text(
+            "💬 Это базовый профиль — бесплатно и навсегда твой.\n\n"
+            "🎁 Хочешь расширенный отчёт с планом на 5 лет, картой навыков и разделом для родителей?\n"
+            "Оставь отзыв на сайте 👉 novorostok.ru — и я пришлю его тебе первым!\n\n"
+            "📩 Версия для родителей: /report"
+        )
         print(f"✅ Отчёт отправлен {user_id}")
 
     except Forbidden:
-        print(f"⚠️ Пользователь {user_id} заблокировал бота — пропускаем")
+        print(f"⚠️ Пользователь {user_id} заблокировал бота")
     except Exception as e:
         print(f"❌ Ошибка: {e}")
-        # ❌ СОБЫТИЕ: бросил / ошибка
         await asyncio.to_thread(
             log_event, user_id, username,
             "dropped",
-            f"Ошибка на этапе обработки: {str(e)[:100]}"
+            f"Ошибка: {str(e)[:100]}"
         )
         await update.message.reply_text(
             "Нова думает чуть дольше обычного 🌱\n"
@@ -338,7 +389,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = user.first_name or "друг"
     username = user.username or user.first_name or str(user.id)
 
-    # 🚀 СОБЫТИЕ: запустил бота
     await asyncio.to_thread(
         log_event, user.id, username,
         "started",
@@ -367,11 +417,7 @@ async def cmd_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name, report_json = row
             report = json.loads(report_json)
             msg = format_parent_report(report, name)
-            try:
-                await update.message.reply_text(msg)
-            except Exception:
-                clean_msg = re.sub(r'[*_`\[\]()~>#+=|{}.!\\]', '', msg)
-                await update.message.reply_text(clean_msg)
+            await update.message.reply_text(msg, parse_mode="HTML")
         else:
             await update.message.reply_text("Сначала пройди интервью: /start 🌱")
     except Forbidden:
